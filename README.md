@@ -46,18 +46,18 @@
 
 ## 학습 순서
 
-1. [00_python_basics](concepts/00_python_basics.md)
-2. [01_hash](concepts/01_hash.md)
-3. [02_string](concepts/02_string.md)
-4. [03_priority_queue](concepts/03_priority_queue.md)
-5. [04_binary_search](concepts/04_binary_search.md)
-6. [05_bfs_dfs](concepts/05_bfs_dfs.md)
-7. [06_union_find](concepts/06_union_find.md)
-8. [07_shortest_path](concepts/07_shortest_path.md)
-9. [08_tree_lca](concepts/08_tree_lca.md)
-10. [09_sqrt_bucket](concepts/09_sqrt_bucket.md)
-11. [10_time_based_api](concepts/10_time_based_api.md)
-12. [11_implementation_time_attack](concepts/11_implementation_time_attack.md)
+1. [00_python_basics](concepts/00_python_basics.py)
+2. [01_hash](concepts/01_hash.py)
+3. [02_string](concepts/02_string.py)
+4. [03_priority_queue](concepts/03_priority_queue.py)
+5. [04_binary_search](concepts/04_binary_search.py)
+6. [05_bfs_dfs](concepts/05_bfs_dfs.py)
+7. [06_union_find](concepts/06_union_find.py)
+8. [07_shortest_path](concepts/07_shortest_path.py)
+9. [08_tree_lca](concepts/08_tree_lca.py)
+10. [09_sqrt_bucket](concepts/09_sqrt_bucket.py)
+11. [10_time_based_api](concepts/10_time_based_api.py)
+12. [11_implementation_time_attack](concepts/11_implementation_time_attack.py)
 
 ---
 
