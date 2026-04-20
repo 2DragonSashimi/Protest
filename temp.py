@@ -1,31 +1,28 @@
 import sys
-sys.setrecursionlimit(10000)
+sys.setrecursionlimit(100000)
 
 n = int(input().rstrip())
 ans = 0
 visited = [[False]*n for _ in range(n)]
-
 def find(depth,temp):
     global ans
     if depth == n:
         ans += 1
-        
-    for i in range(n):
+        return
+    for i in range(n):    
         for j in range(n):
+            ok = True
             if not visited[i][j]:
-                if depth == 0:
-                    temp.append((i,j))
-                    visited[x][y] = True
                 for x,y in temp:
-                    if not (i == x or j == y or (i + j) == x + y or j - i == y - x):
-                        temp.append((i,j))
-                        visited[x][y] = True
-                        find(depth + 1, temp)
-                        temp.pop()
-                        visited[x][y] = False
-def show(arr):
-    for row in arr:
-        print(row)
+                    if (i == x or j == y or (i + j) == x + y or j - i == y - x):
+                        ok = False
+                        break
+                if ok:    
+                    temp.append((i,j))
+                    visited[i][j] = True
+                    find(depth + 1, temp)
+                    visited[i][j] = False
+                    temp.pop()
 
 find(0, [])
 print(ans)
