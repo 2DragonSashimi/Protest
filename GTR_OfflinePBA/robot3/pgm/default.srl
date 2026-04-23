@@ -1,0 +1,46 @@
+#test project, default.srl file
+load_tp('default')
+execfile('RobotMotion_3.srl')
+execfile('../../robot0/pgm/Define.srl')
+execfile('../../robot0/pgm/Define_IO.srl')
+execfile('../../robot0/pgm/func_common.srl')
+
+funcResult = 0
+write_global_value('RETURN_R3', funcResult)
+mwait_sync(DEF_INIT, [0, 1, 2, 3]) 
+
+while True:
+    PG_NAME = read_global_value('RUN_CMD_R3')
+    if PG_NAME == 'MOV000':
+        wait(0.005)
+        continue
+      
+    # if int(PG_NAME[3:5]) <= 7: # Mov006 이하
+    #     if isHome_Body() == False:
+    #         wait(0.005)
+    #         continue
+    write_global_value('RETURN_R3', -1)
+      
+    # if PG_NAME.strip() == 'MOV001':
+    #     funcResult = Mov001_Home()
+            
+    if PG_NAME == 'MOV002':
+        funcResult = Mov002_Box_Load()
+      
+    elif PG_NAME == 'MOV003':
+        funcResult = Mov003_Press_Unload()
+      
+    elif PG_NAME == 'MOV004':
+        funcResult = Mov004_SB_Load()  
+      
+    elif PG_NAME == 'MOV005':
+        funcResult = Mov005_TopHS_Pick()
+            
+    elif PG_NAME == 'MOV006':
+        funcResult = Mov006_TopHS_Load()
+            
+    elif PG_NAME == 'MOV007':
+        funcResult = Mov007_SB_Unload()
+      
+    write_global_value('RETURN_R3', funcResult)
+    endwhile()

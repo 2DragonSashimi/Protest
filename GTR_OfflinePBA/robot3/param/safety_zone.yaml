@@ -1,0 +1,2 @@
+min_req_version: 2000
+settings: {body_enabled: false, body_self_enabled: false, enabled: false, margin: 0.0, obstacle_enabled: false, tool_enabled: false}

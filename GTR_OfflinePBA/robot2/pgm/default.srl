@@ -1,0 +1,47 @@
+#test project, default.srl file
+load_tp('default')
+execfile('RobotMotion_2.srl')
+execfile('../../robot0/pgm/Define.srl')
+execfile('../../robot0/pgm/Define_IO.srl')
+execfile('../../robot0/pgm/func_common.srl')
+
+funcResult = 0
+write_global_value('RETURN_R2', funcResult)
+mwait_sync(DEF_INIT, [0, 1, 2, 3]) 
+
+while True:
+    PG_NAME = read_global_value('RUN_CMD_R2')
+    if PG_NAME == 'MOV000':
+        wait(0.005)
+        continue
+      
+    # if int(PG_NAME[3:5]) <= 6: # Mov006 이하
+    #     if isHome_Body() == False:
+    #         wait(0.005)
+    #         continue
+    
+    write_global_value('RETURN_R2', -1)
+      
+    # if PG_NAME == 'MOV001':
+    #     funcResult = Mov001_Home()
+
+    if PG_NAME == 'MOV002':
+        funcResult = Mov002_Inspec_Unload()
+
+    elif PG_NAME == 'MOV003':
+        funcResult = Mov003_BotHS_Pickup()
+
+    elif PG_NAME == 'MOV004':
+        funcResult = Mov004_Inspec_Unload()
+
+    elif PG_NAME == 'MOV005':
+        funcResult = Mov005_Press_Load()
+      
+    elif PG_NAME == 'MOV006':
+        funcResult = Mov006_PBA_Load()
+      
+    write_global_value('RETURN_R2', funcResult)
+    endwhile()
+
+
+
