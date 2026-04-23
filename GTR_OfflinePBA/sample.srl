@@ -8,12 +8,12 @@ execfile('func_rmcs.srl')
 
 disable_log(None, ["write_global_value", "read_global_value", "wait"])
 
-
 write_global_value('RUN_CMD_R2', 'MOV000')
 write_global_value('RUN_CMD_R3', 'MOV000')
+write_global_value('RETURN_R2', 0)
+write_global_value('RETURN_R3', 0)
 
 mwait_sync(DEF_INIT, [0, 1, 2, 3])
-
 
 CUR_STEP_R2 = 2
 CUR_STEP_R3 = 2
@@ -27,53 +27,118 @@ R2_MAX = 6
 R3_MIN = 2
 R3_MAX = 7
 
+LAST_DONE_R2 = 0
+LAST_DONE_R3 = 0
+
+TURN_DONE = 0
+HOME_DONE = 0
+BODY_HOLD = 0
+
+# R2는 MOV006 완료 후 R3의 MOV007 완료까지 대기
+R2_WAIT_R3_7 = 0
+
 while True:
 
     R2_STATE = read_global_value('RETURN_R2')
-
-    if WAIT_R2_DONE == 0:
-        PG_NAME = "MOV" + f"{CUR_STEP_R2:03d}"
-        output(f'Robot2 Program Start : {PG_NAME}')
-        write_global_value('RUN_CMD_R2', PG_NAME)
-        WAIT_R2_DONE = 1
-
-    elif WAIT_R2_DONE == 1 and R2_STATE == 0 and CUR_STEP_R2 == 6 and CUR_STEP_R3 == 6:
-        WAIT_R2_DONE == 0
-        if CUR_STEP_R3 == 2:
-          WAIT_R2_DONE == 0:
-      
-    elif WAIT_R2_DONE == 1 and R2_STATE == 0:
-        CUR_STEP_R2 += 1
-        if CUR_STEP_R2 > R2_MAX:
-            CUR_STEP_R2 = R2_MIN
-        WAIT_R2_DONE = 0
-
-
-    
-
     R3_STATE = read_global_value('RETURN_R3')
 
-    if WAIT_R3_DONE == 0:
-        PG_NAME = "MOV" + f"{CUR_STEP_R3:03d}"
-        output(f'Robot3 Program Start : {PG_NAME}')
-        write_global_value('RUN_CMD_R3', PG_NAME)
-        WAIT_R3_DONE = 1
+    # =========================================================
+    # BODY TURN
+    # R2 MOV002, R3 MOV002 완료 후
+    # 새 명령 발행 멈추고, 양팔 idle 확인 후 turn 1회 수행
+    # =========================================================
+    if TURN_DONE == 0 and LAST_DONE_R2 == 2 and LAST_DONE_R3 == 2:
+        BODY_HOLD = 1
 
-    elif WAIT_R3_DONE == 1 and R3_STATE == 0:
-        CUR_STEP_R3 += 1
-        if CUR_STEP_R3 > R3_MAX:
-            CUR_STEP_R3 = R3_MIN
-        WAIT_R3_DONE = 0
+        if WAIT_R2_DONE == 0 and WAIT_R3_DONE == 0 and R2_STATE == 0 and R3_STATE == 0:
+            output('BODY TURN START')
+            Mov002_Turn()
+            TURN_DONE = 1
+            BODY_HOLD = 0
 
+        wait(0.01)
+        continue
 
-    if CUR_STEP_R2 == 3 and CUR_STEP_R3 == 3:
-        Mov002_Turn()
-        
+    # =========================================================
+    # BODY HOME
+    # R3 MOV007 완료 후
+    # 새 명령 발행 멈추고, 양팔 idle 확인 후 home 1회 수행
+    # =========================================================
+    if HOME_DONE == 0 and LAST_DONE_R3 == 7:
+        BODY_HOLD = 1
 
-    elif CUR_STEP_R3 == 7:
-        Mov001_Home()
-      
+        if WAIT_R2_DONE == 0 and WAIT_R3_DONE == 0 and R2_STATE == 0 and R3_STATE == 0:
+            output('BODY HOME START')
+            Mov001_Home()
+            HOME_DONE = 1
+            BODY_HOLD = 0
+
+            # 다음 사이클 준비
+            CUR_STEP_R2 = 2
+            CUR_STEP_R3 = 2
+
+            WAIT_R2_DONE = 0
+            WAIT_R3_DONE = 0
+
+            LAST_DONE_R2 = 0
+            LAST_DONE_R3 = 0
+
+            TURN_DONE = 0
+            HOME_DONE = 0
+            R2_WAIT_R3_7 = 0
+
+        wait(0.01)
+        continue
+
+    # =========================================================
+    # LEFT HAND SCHEDULING
+    # =========================================================
+    if BODY_HOLD == 0 and R2_WAIT_R3_7 == 0:
+
+        if WAIT_R2_DONE == 0:
+            PG_NAME = "MOV" + f"{CUR_STEP_R2:03d}"
+            output(f'Robot2 Program Start : {PG_NAME}')
+            write_global_value('RUN_CMD_R2', PG_NAME)
+            WAIT_R2_DONE = 1
+
+        elif WAIT_R2_DONE == 1 and R2_STATE == 0:
+            LAST_DONE_R2 = CUR_STEP_R2
+
+            # R2는 6번 끝나면 바로 2로 가지 않고 대기
+            if CUR_STEP_R2 == 6:
+                CUR_STEP_R2 = 2
+                R2_WAIT_R3_7 = 1
+            else:
+                CUR_STEP_R2 += 1
+                if CUR_STEP_R2 > R2_MAX:
+                    CUR_STEP_R2 = R2_MIN
+
+            WAIT_R2_DONE = 0
+
+    # =========================================================
+    # RIGHT HAND SCHEDULING
+    # =========================================================
+    if BODY_HOLD == 0:
+
+        if WAIT_R3_DONE == 0:
+            PG_NAME = "MOV" + f"{CUR_STEP_R3:03d}"
+            output(f'Robot3 Program Start : {PG_NAME}')
+            write_global_value('RUN_CMD_R3', PG_NAME)
+            WAIT_R3_DONE = 1
+
+        elif WAIT_R3_DONE == 1 and R3_STATE == 0:
+            LAST_DONE_R3 = CUR_STEP_R3
+
+            if CUR_STEP_R3 == 7:
+                CUR_STEP_R3 = 2
+                R2_WAIT_R3_7 = 0
+            else:
+                CUR_STEP_R3 += 1
+                if CUR_STEP_R3 > R3_MAX:
+                    CUR_STEP_R3 = R3_MIN
+
+            WAIT_R3_DONE = 0
+
     wait(0.01)
-
 
 endwhile()
