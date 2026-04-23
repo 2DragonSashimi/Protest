@@ -1,3 +1,5 @@
+BODY : defualt
+================================================================
 load_tp('default')
 execfile('RobotMotion_0.srl')
 execfile('Define.srl')
@@ -8,17 +10,13 @@ execfile('func_rmcs.srl')
 
 disable_log(None, ["write_global_value", "read_global_value", "wait"])
 
-if get_speed() < 30:
-    set_speed(20)
 
-# ready for start
-write_global_value('RUN_CMD_R1', 'MOV000')
 write_global_value('RUN_CMD_R2', 'MOV000')
 write_global_value('RUN_CMD_R3', 'MOV000')
 
 mwait_sync(DEF_INIT, [0, 1, 2, 3])
 
-# ===== local state =====
+
 CUR_STEP_R2 = 2
 CUR_STEP_R3 = 2
 
@@ -33,52 +31,530 @@ R3_MAX = 7
 
 while True:
 
-    # -----------------------------
-    # Robot2 state machine
-    # -----------------------------
-    r2_status = read_global_value('RETURN_R2')
+    R2_STATE = read_global_value('RETURN_R2')
 
-    # 아직 명령 안 보낸 상태면 새 명령 발행
     if WAIT_R2_DONE == 0:
-        pg_name = "MOV" + f"{CUR_STEP_R2:03d}"
-        output(f'Robot2 Program Start : {pg_name}')
-        write_global_value('RUN_CMD_R2', pg_name)
+        PG_NAME = "MOV" + f"{CUR_STEP_R2:03d}"
+        output(f'Robot2 Program Start : {PG_NAME}')
+        write_global_value('RUN_CMD_R2', PG_NAME)
         WAIT_R2_DONE = 1
 
-    # 내가 보낸 명령이 끝났으면 다음 step 준비
-    elif WAIT_R2_DONE == 1 and r2_status == 0:
+
+    elif WAIT_R2_DONE == 1 and R2_STATE == 0:
         CUR_STEP_R2 += 1
         if CUR_STEP_R2 > R2_MAX:
             CUR_STEP_R2 = R2_MIN
         WAIT_R2_DONE = 0
 
 
-    # -----------------------------
-    # Robot3 state machine
-    # -----------------------------
-    r3_status = read_global_value('RETURN_R3')
+    R3_STATE = read_global_value('RETURN_R3')
 
     if WAIT_R3_DONE == 0:
-        pg_name = "MOV" + f"{CUR_STEP_R3:03d}"
-        output(f'Robot3 Program Start : {pg_name}')
-        write_global_value('RUN_CMD_R3', pg_name)
+        PG_NAME = "MOV" + f"{CUR_STEP_R3:03d}"
+        output(f'Robot3 Program Start : {PG_NAME}')
+        write_global_value('RUN_CMD_R3', PG_NAME)
         WAIT_R3_DONE = 1
 
-    elif WAIT_R3_DONE == 1 and r3_status == 0:
+    elif WAIT_R3_DONE == 1 and R3_STATE == 0:
         CUR_STEP_R3 += 1
         if CUR_STEP_R3 > R3_MAX:
             CUR_STEP_R3 = R3_MIN
         WAIT_R3_DONE = 0
 
 
-    # -----------------------------
-    # Body motion
-    # -----------------------------
-    if int(get_user_edit('BodyTurn')) == 1:
+    if CUR_STEP_R2 == 3 and CUR_STEP_R3 == 3:
         Mov002_Turn()
-    else:
+        
+
+    elif CUR_STEP_R3 == 7:
         Mov001_Home()
 
-    wait(0.01)
+
 
 endwhile()
+
+
+Body : robotmotion0
+========================================
+#GTR_OfflinePBA project, RobotMotion_0.srl file
+load_tp('default')
+
+def Mov001_Home():
+    # Program Start #
+    
+    # Flag & IO & Cylinder Init #
+    error_code = 0
+    # Check Work Space #
+    if isInPosition('M_prHome'):
+        return error_code
+    cur_pos = get_pose()
+    # Interface & Update Target #
+      
+    # Move Function #  
+    movej('M_prHome', stc=1)
+    # Sub Motion #
+  
+    # Program End #
+    return error_code
+
+def Mov002_Turn():
+    # Program Start #
+    
+    # Flag & IO & Cylinder Init #
+    error_code = 0
+    # Check Work Space #
+    if isInPosition('M_prTurn'):
+        return error_code
+    cur_pos = get_pose()
+    # Interface & Update Target #
+      
+    # Move Function #  
+    movej('M_prTurn', stc=1)
+    # Sub Motion #
+  
+    # Program End #
+    return error_code
+
+def isInPosition(position):
+    cur_pos = get_pose()
+    target_pos = get_pose(position)
+    rz = target_pos.rz - cur_pos.rz
+    return abs(rz) <= 0.5
+
+
+left : defualt
+========================
+#test project, default.srl file
+load_tp('default')
+execfile('RobotMotion_2.srl')
+execfile('../../robot0/pgm/Define.srl')
+execfile('../../robot0/pgm/Define_IO.srl')
+execfile('../../robot0/pgm/func_common.srl')
+
+funcResult = 0
+write_global_value('RETURN_R2', funcResult)
+mwait_sync(DEF_INIT, [0, 1, 2, 3]) 
+
+while True:
+    PG_NAME = read_global_value('RUN_CMD_R2')
+    if PG_NAME == 'MOV000':
+        wait(0.005)
+        continue
+      
+    write_global_value('RUN_CMD_R2', 'MOV000')
+    write_global_value('RETURN_R2', -1)
+
+    if PG_NAME == 'MOV002':
+        funcResult = Mov002_Inspec_Unload()
+
+    elif PG_NAME == 'MOV003':
+        funcResult = Mov003_BotHS_Pickup()
+
+    elif PG_NAME == 'MOV004':
+        funcResult = Mov004_BotHS_Load()
+
+    elif PG_NAME == 'MOV005':
+        funcResult = Mov005_BotHS_Remove()
+      
+    elif PG_NAME == 'MOV006':
+        funcResult = Mov006_PBA_Load()
+      
+    write_global_value('RETURN_R2', funcResult)
+    endwhile()
+
+
+
+left : robotmotion2
+=====================================
+#test project, RobotMotion_2.srl file
+load_tp('default')
+execfile('../../robot0/pgm/func_cylinder.srl')
+execfile('../../robot0/pgm/Define.srl')
+execfile('../../robot0/pgm/func_common.srl')
+
+
+def Mov002_Inspec_Unload():
+    # Program Start #
+  
+    # Flag & IO & Cylinder Init #
+    error_code = 0
+    # Check Work Space #
+  
+    # Interface & Update Target #
+    target_pos = get_pose('M_prInspec_Unload', stc=1)
+  
+    ready1_pos = get_pose(target_pos, z=50, stc=1)
+  
+    complete1_pos = get_pose(target_pos, z=50, stc=1)
+  
+    # Move Function #  
+    movej('M_prInspec_Unload_Ready',t=0.5, stc=1)
+    # movej(ready1_pos,r=-1)
+    #mio_out(OUT_LEFT_TOOL_VAC1_ON,on)
+    movej(target_pos,t = 0.7)
+    mwait(0.5)
+    # movel(complete1_pos,r=-1)
+    movej('M_prInspec_Unload_Ready',t = 0.3,stc = 1)
+    # Sub Motion #
+  
+    # Program End #
+    return error_code
+
+def Mov003_BotHS_Pickup():
+    # Program Start #
+    
+    # Flag & IO & Cylinder Init #
+    error_code = 0
+    # Check Work Space #
+    if isHome_Body() == False:
+        error_code = 123121
+        return error_code
+    
+    # Interface & Update Target #
+    target_pos = get_pose('M_prBotHS_Pick', stc=1)
+  
+    # Move Function #  
+    movej('M_prBotHS_Pick_Ready', t = 1.0, stc=1)
+    #mio_out(OUT_LEFT_TOOL_VAC1_ON,on)
+    movel(target_pos,t = 1.5)
+    mwait(1.0)
+    # movel(complete1_pos,r=-1)
+    movej('M_prBotHS_Pick_Ready',t = 0.5, stc=1)
+  
+    # Sub Motion #
+  
+    # Program End #
+    return error_code
+
+def Mov004_BotHS_Load():
+    # Program Start #
+    
+    # Flag & IO & Cylinder Init #
+    error_code = 0
+    # Check Work Space #
+    if isHome_Body() == False:
+        error_code = 123121
+        return error_code
+    
+    # Interface & Update Target #
+    target_pos = get_pose('M_prBotHS_Load', stc=1)
+  
+    ready1_pos = get_pose(target_pos, tlz=50, stc=1)
+  
+    complete1_pos = get_pose(target_pos, tlz=50, stc=1)
+  
+    # Move Function #  
+    movej('M_prBotHS_Load_Ready',t = 1.0, stc=1)
+    # movej(ready1_pos,r=-1)
+    #mio_out(OUT_LEFT_TOOL_VAC1_ON,on)
+    movel(target_pos,t=1.0)
+    mwait(0.5)
+    # movel(complete1_pos,r=-1)
+    movej('M_prBotHS_Load_Ready',t = 0.5, stc=1)
+  
+    # Sub Motion #
+  
+    # Program End #
+    return error_code
+  
+def Mov005_BotHS_Remove():
+    # Program Start #
+    
+    # Flag & IO & Cylinder Init #
+    error_code = 0
+    # Check Work Space #
+    if isHome_Body() == False:
+        error_code = 123121
+        return error_code
+    
+    # Interface & Update Target #
+    target_pos = get_pose('M_prBotHS_Remove', stc=1)
+  
+    ready1_pos = get_pose(target_pos, tlz=50, stc=1)
+  
+    complete1_pos = get_pose(target_pos, tlz=50, stc=1)
+  
+    # Move Function #  
+    movej('M_prBotHS_Remove_Ready',t=1.0, stc=1)
+    # movej(ready1_pos,r=-1)
+    #mio_out(OUT_LEFT_TOOL_VAC1_ON,on)
+    movel(target_pos,t=1.5)
+    mwait(1.0)
+    # movel(complete1_pos,r=-1)
+    movej('M_prBotHS_Load_Ready',t =0.5, stc=1)
+  
+    # Sub Motion #
+  
+    # Program End #
+    return error_code
+  
+def Mov006_PBA_Load():
+    # Program Start #
+    
+    # Flag & IO & Cylinder Init #
+    error_code = 0
+    # Check Work Space #
+    if isHome_Body() == False:
+        error_code = 123121
+        return error_code
+    
+    # Interface & Update Target #
+    target_pos = get_pose('M_prBotHS_Load', stc=1)
+  
+    ready1_pos = get_pose(target_pos, tlz=50, stc=1)
+  
+    complete1_pos = get_pose(target_pos, tlz=50, stc=1)
+  
+    # Move Function #  
+    movej('M_prBotHS_Load_Ready',t = 1.0, stc=1)
+    # movej(ready1_pos,r=-1)
+    #mio_out(OUT_LEFT_TOOL_VAC1_ON,on)
+    movel(target_pos,t = 1.0)
+    mwait(0.5)
+    # movel(complete1_pos,r=-1)
+    movej('M_prBotHS_Remove_After',t = 0.5, stc=1)
+    mwait(4.0)
+    # Sub Motion #
+  
+    # Program End #
+    return error_code
+
+right : default 
+==============================
+#test project, default.srl file
+load_tp('default')
+execfile('RobotMotion_3.srl')
+execfile('../../robot0/pgm/Define.srl')
+execfile('../../robot0/pgm/Define_IO.srl')
+execfile('../../robot0/pgm/func_common.srl')
+
+funcResult = 0
+write_global_value('RETURN_R3', funcResult)
+mwait_sync(DEF_INIT, [0, 1, 2, 3]) 
+
+while True:
+    PG_NAME = read_global_value('RUN_CMD_R3')
+    if PG_NAME == 'MOV000':
+        wait(0.005)
+        continue
+
+    write_global_value('RUN_CMD_R3', 'MOV000')
+    write_global_value('RETURN_R3', -1)
+
+            
+    if PG_NAME == 'MOV002':
+        funcResult = Mov002_Box_Load()
+      
+    elif PG_NAME == 'MOV003':
+        funcResult = Mov003_Press_Unload()
+      
+    elif PG_NAME == 'MOV004':
+        funcResult = Mov004_SB_Load()  
+      
+    elif PG_NAME == 'MOV005':
+        funcResult = Mov005_TopHS_Pick()
+            
+    elif PG_NAME == 'MOV006':
+        funcResult = Mov006_TopHS_Load()
+            
+    elif PG_NAME == 'MOV007':
+        funcResult = Mov007_SB_Unload()
+      
+    write_global_value('RETURN_R3', funcResult)
+    endwhile()
+
+right : robotmotion3
+============================
+#test project, RobotMotion_2.srl file
+load_tp('default')
+execfile('../../robot0/pgm/func_cylinder.srl')
+execfile('../../robot0/pgm/Define.srl')
+execfile('../../robot0/pgm/func_common.srl')
+
+
+def Mov002_Box_Load():
+    # Program Start #
+    
+    # Flag & IO & Cylinder Init #
+    error_code = 0
+    # Check Work Space #
+    #if isReturn_Body() == False:
+        #error_code = 123121
+        #return error_code
+    
+    # Interface & Update Target #
+    target_pos = get_pose('M_prBox_Load', stc=1)
+  
+    ready1_pos = get_pose(target_pos, tlz=50, stc=1)
+  
+    complete1_pos = get_pose(target_pos, tlz=50, stc=1)
+  
+    # Move Function #  
+    movej('M_prBox_Load_Ready',t = 1.0, stc=1)
+    # movej(ready1_pos,r=-1)
+    #mio_out(OUT_LEFT_TOOL_VAC1_ON,on)
+    movel(target_pos,t = 1.5)
+    mwait(1.0)
+    # movel(complete1_pos,r=-1)
+    movej('M_prBox_Load_Ready', t = 0.5, stc=1)
+  
+    # Sub Motion #
+  
+    # Program End #
+    return error_code
+  
+def Mov003_Press_Unload():
+    # Program Start #
+    
+    # Flag & IO & Cylinder Init #
+    error_code = 0
+    # Check Work Space #
+    #if isReturn_Body() == False:
+        #error_code = 123121
+        #return error_code
+    
+    # Interface & Update Target #
+    target_pos = get_pose('M_prPress_Unload', stc=1)
+  
+    ready1_pos = get_pose(target_pos, tlz=50, stc=1)
+  
+    complete1_pos = get_pose(target_pos, tlz=50, stc=1)
+  
+    # Move Function #  
+    movej('M_prPress_Unload_Ready',t = 0.5, stc=1)
+    # movej(ready1_pos,r=-1)
+    #mio_out(OUT_LEFT_TOOL_VAC1_ON,on)
+    movel(target_pos,t=0.7)
+    mwait(0.5)
+    # movel(complete1_pos,r=-1)
+    movej('M_prPress_Unload_Ready',t = 0.3, stc=1)
+  
+    # Sub Motion #
+  
+    # Program End #
+    return error_code
+  
+def Mov004_SB_Load():
+    # Program Start #
+    
+    # Flag & IO & Cylinder Init #
+    error_code = 0
+    # Check Work Space #
+    #if isReturn_Body() == False:
+        #error_code = 123121
+        #return error_code
+    
+    # Interface & Update Target #
+    target_pos = get_pose('M_prSB_Load', stc=1)
+  
+    ready1_pos = get_pose(target_pos, tlz=50, stc=1)
+  
+    complete1_pos = get_pose(target_pos, tlz=50, stc=1)
+  
+    # Move Function #  
+    movej('M_prSB_Load_Ready',t=1.0, stc=1)
+    # movej(ready1_pos,r=-1)
+    #mio_out(OUT_LEFT_TOOL_VAC1_ON,on)
+    movel(target_pos,t = 1.5)
+    mwait(1.0)
+    # movel(complete1_pos,r=-1)
+    movej('M_prSB_Load_Ready',t = 0.5, stc=1)
+  
+    # Sub Motion #
+  
+    # Program End #
+    return error_code
+
+def Mov005_TopHS_Pick():
+    # Program Start #
+    
+    # Flag & IO & Cylinder Init #
+    error_code = 0
+    # Check Work Space #
+    #if isReturn_Body() == False:
+        #error_code = 123121
+        #return error_code
+    
+    # Interface & Update Target #
+    target_pos = get_pose('M_prTopHS_Pick', stc=1)
+  
+    ready1_pos = get_pose(target_pos, tlz=50, stc=1)
+  
+    complete1_pos = get_pose(target_pos, tlz=50, stc=1)
+  
+    # Move Function #  
+    movej('M_prTopHS_Pick_Ready',t = 1.0, stc=1)
+    # movej(ready1_pos,r=-1)
+    #mio_out(OUT_LEFT_TOOL_VAC1_ON,on)
+    movel(target_pos,t = 1.5)
+    mwait(1.0)
+    # movel(complete1_pos,r=-1)
+    movej('M_prTopHS_Pick_Ready', t = 0.5, stc=1)
+  
+    # Sub Motion #
+  
+    # Program End #
+    return error_code
+
+def Mov006_TopHS_Load():
+    # Program Start #
+    
+    # Flag & IO & Cylinder Init #
+    error_code = 0
+    # Check Work Space #
+    #if isReturn_Body() == False:
+        #error_code = 123121
+        #return error_code
+    
+    # Interface & Update Target #
+    target_pos = get_pose('M_prTopHS_Load', stc=1)
+  
+    ready1_pos = get_pose(target_pos, tlz=50, stc=1)
+  
+    complete1_pos = get_pose(target_pos, tlz=50, stc=1)
+  
+    # Move Function #  
+    movej('M_prTopHS_Load_Ready',t= 0.5, stc=1)
+    # movej(ready1_pos,r=-1)
+    #mio_out(OUT_LEFT_TOOL_VAC1_ON,on)
+    movel(target_pos,t = 0.7)
+    mwait(0.5)
+    # movel(complete1_pos,r=-1)
+    movej('M_prTopHS_Load_Ready',t = 0.3, stc=1)
+  
+    # Sub Motion #
+  
+    # Program End #
+    return error_code
+
+def Mov007_SB_Unload():
+    # Program Start #
+    
+    # Flag & IO & Cylinder Init #
+    error_code = 0
+    # Check Work Space #
+    #if isReturn_Body() == False:
+        #error_code = 123121
+        #return error_code
+    
+    # Interface & Update Target #
+    target_pos = get_pose('M_prSB_Unload', stc=1)
+  
+    ready1_pos = get_pose(target_pos, tlz=50, stc=1)
+  
+    complete1_pos = get_pose(target_pos, tlz=50, stc=1)
+  
+    # Move Function #  
+    movej('M_prSB_Unload_Ready',t = 0.5, stc=1)
+    # movej(ready1_pos,r=-1)
+    #mio_out(OUT_LEFT_TOOL_VAC1_ON,on)
+    movel(target_pos,t = 0.7)
+    mwait(0.5)
+    # movel(complete1_pos,r=-1)
+    movej('M_prSB_Unload_Ready', t = 0.3, stc=1)
+  
+    # Sub Motion #
+  
+    # Program End #
+    return error_code
+  
