@@ -1,0 +1,111 @@
+# ----------------------------------------------------------------------------------
+# Test_LongRun_Jejobot_Robot1.srl file
+# Author : jiseok1.han@samsung.com
+# Revision : 
+#     - v.0.3 (2025.01.31) : Add new robots (SRRB100572OM2A1U)
+#     - v.0.2 (2024.09.11) : Add new robots (SRRB100572OM1A1U)
+#     - v.0.1 (2024.06.05) : First Issued. (SRRB100572OM1U)
+# ----------------------------------------------------------------------------------
+
+load_tp('default')
+set_speed(20)
+
+# Set Motion Variables ----------------------------------
+o_vel_safe = 10
+o_vel_slow = 20
+o_vel_middle = 20
+o_vel_fast = 100
+
+acc_slow = 0.5
+acc_fast = 0.3
+
+syncNum = 1
+syncMVNum = 1
+
+Joint_Move_Ready = [0, 0]
+
+RobotModel = get_diagnosis_robotmodel()
+
+
+def LongRun_All_Joint(time_list) :
+	rCP = 100
+	t_acc = 0.3
+	o_vel = 100
+	
+	global syncMVNum
+
+	msync_move_on(syncMVNum,[0,1,2,3])
+	syncMVNum = syncMVNum + 1
+
+	movej( [20, 40] , o = o_vel, acc = t_acc, dec = t_acc, d = rCP )
+	movej( [-55, -15], o = o_vel, acc = t_acc, dec = t_acc,  d = rCP )
+	movej( [55, 20] , o = o_vel, acc = t_acc, dec = t_acc,  d = rCP )
+	movej( [-20, 15] , o = o_vel, acc = t_acc, dec = t_acc,  d = rCP )
+	movej( [20, -30], o = o_vel, acc = t_acc, dec = t_acc,  d = rCP )
+
+	movej( [55, 15] , o = o_vel, acc = t_acc, dec = t_acc,  d = rCP )
+	movej( [-20, -40] , o = o_vel, acc = t_acc, dec = t_acc,  d = rCP )
+	movej( [-55, 40] , o = o_vel, acc = t_acc, dec = t_acc, d = rCP )
+	movej( [20, -15] , o = o_vel, acc = t_acc, dec = t_acc,  d = rCP )
+	movej( [0, -30] , o = o_vel, acc = t_acc, dec = t_acc,  d = rCP )
+
+	movej( [0, 0] , o = o_vel, acc = t_acc, dec = t_acc,  d = rCP )	
+	
+	msync_move_off(syncMVNum,[0,1,2,3])
+	syncMVNum = syncMVNum + 1	
+	
+	
+	return True
+
+
+def LongRun_All_Joint_1A(time_list) :
+	rCP = 100
+	t_acc = 0.3
+	o_vel = 100
+	
+	global syncMVNum
+
+	msync_move_on(syncMVNum,[0,1,2,3])
+	syncMVNum = syncMVNum + 1
+
+	movej( [20, 105] , o = o_vel, acc = t_acc, dec = t_acc, d = rCP )
+	movej( [-55, -15], o = o_vel, acc = t_acc, dec = t_acc,  d = rCP )
+	movej( [55, 75] , o = o_vel, acc = t_acc, dec = t_acc,  d = rCP )
+	movej( [-20, 15] , o = o_vel, acc = t_acc, dec = t_acc,  d = rCP )
+	movej( [20, -30], o = o_vel, acc = t_acc, dec = t_acc,  d = rCP )
+
+	movej( [55, 105] , o = o_vel, acc = t_acc, dec = t_acc,  d = rCP )
+	movej( [-20, -30] , o = o_vel, acc = t_acc, dec = t_acc,  d = rCP )
+	movej( [-55, 70] , o = o_vel, acc = t_acc, dec = t_acc, d = rCP )
+	movej( [20, -15] , o = o_vel, acc = t_acc, dec = t_acc,  d = rCP )
+	movej( [55, 105] , o = o_vel, acc = t_acc, dec = t_acc,  d = rCP )	
+
+	movej( [0, 0] , o = o_vel, acc = t_acc, dec = t_acc,  d = rCP )
+	
+	msync_move_off(syncMVNum,[0,1,2,3])
+	syncMVNum = syncMVNum + 1	
+	
+	
+	return True
+
+# Main ----------------------------------------------
+
+msync_move_on(syncMVNum,[0,1,2,3])
+syncMVNum = syncMVNum + 1
+
+movej(Joint_Move_Ready, o = o_vel_middle)
+wait(0.5)
+
+msync_move_off(syncMVNum,[0,1,2,3])
+syncMVNum = syncMVNum + 1
+
+while True :
+	if ( RobotModel == 'SRRB100572OM1U') :
+		LongRun_All_Joint(0)
+
+	if ( RobotModel == 'SRRB100572OM1A1U') or ( RobotModel == 'SRRB100572OM2A1U'):
+		LongRun_All_Joint_1A(0)
+
+	endwhile()
+
+

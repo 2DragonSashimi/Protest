@@ -1,0 +1,22 @@
+#test project, default.srl file
+load_tp('default')
+execfile('RobotMotion_1.srl')
+execfile('../../robot0/pgm/Define.srl')
+execfile('../../robot0/pgm/Define_IO.srl')
+
+mwait_sync(DEF_INIT, [0, 1, 2, 3]) 
+funcResult = 0
+
+while True:
+    PG_NAME = read_global_value('RUN_CMD_R1')
+    if PG_NAME.strip() == 'MOV000':
+        wait(0.005)
+        continue
+
+    write_global_value('RETURN_R1', -1)
+      
+    if PG_NAME.strip() == 'MOV001':
+        funcResult = Mov001_Home()
+
+    write_global_value('RETURN_R1', funcResult)
+    endwhile()
