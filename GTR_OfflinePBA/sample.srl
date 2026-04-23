@@ -8,151 +8,68 @@ execfile('func_rmcs.srl')
 
 disable_log(None, ["write_global_value", "read_global_value", "wait"])
 
+
 write_global_value('RUN_CMD_R2', 'MOV000')
 write_global_value('RUN_CMD_R3', 'MOV000')
-write_global_value('RETURN_R2', 0)
-write_global_value('RETURN_R3', 0)
 
 mwait_sync(DEF_INIT, [0, 1, 2, 3])
 
-PROC_PHASE = 0
-PHASE_INIT = 1
+
+CUR_STEP_R2 = 2
+CUR_STEP_R3 = 2
+
+WAIT_R2_DONE = 0
+WAIT_R3_DONE = 0
+
+R2_MIN = 2
+R2_MAX = 6
+
+R3_MIN = 2
+R3_MAX = 7
 
 while True:
 
     R2_STATE = read_global_value('RETURN_R2')
+
+    if WAIT_R2_DONE == 0:
+        PG_NAME = "MOV" + f"{CUR_STEP_R2:03d}"
+        output(f'Robot2 Program Start : {PG_NAME}')
+        write_global_value('RUN_CMD_R2', PG_NAME)
+        WAIT_R2_DONE = 1
+
+      
+    elif WAIT_R2_DONE == 1 and R2_STATE == 0:
+        CUR_STEP_R2 += 1
+        if CUR_STEP_R2 > R2_MAX:
+            CUR_STEP_R2 = R2_MIN
+        WAIT_R2_DONE = 0
+
+
+    
+
     R3_STATE = read_global_value('RETURN_R3')
 
-    # -------------------------------------------------
-    # PHASE 0 : R2 MOV002 + R3 MOV002
-    # -------------------------------------------------
-    if PROC_PHASE == 0:
-        if PHASE_INIT == 1:
-            output('PHASE 0 : R2 MOV002, R3 MOV002')
-            write_global_value('RUN_CMD_R2', 'MOV002')
-            write_global_value('RUN_CMD_R3', 'MOV002')
-            PHASE_INIT = 0
+    if WAIT_R3_DONE == 0:
+        PG_NAME = "MOV" + f"{CUR_STEP_R3:03d}"
+        output(f'Robot3 Program Start : {PG_NAME}')
+        write_global_value('RUN_CMD_R3', PG_NAME)
+        WAIT_R3_DONE = 1
 
-        elif R2_STATE == 0 and R3_STATE == 0:
-            PROC_PHASE = 1
-            PHASE_INIT = 1
+    elif WAIT_R3_DONE == 1 and R3_STATE == 0:
+        CUR_STEP_R3 += 1
+        if CUR_STEP_R3 > R3_MAX:
+            CUR_STEP_R3 = R3_MIN
+        WAIT_R3_DONE = 0
 
-    # -------------------------------------------------
-    # PHASE 1 : BODY TURN
-    # -------------------------------------------------
-    elif PROC_PHASE == 1:
-        if PHASE_INIT == 1:
-            output('PHASE 1 : BODY TURN')
-            Mov002_Turn()
-            PHASE_INIT = 0
-            PROC_PHASE = 2
-            PHASE_INIT = 1
 
-    # -------------------------------------------------
-    # PHASE 2 : R2 MOV003 + R3 MOV003
-    # -------------------------------------------------
-    elif PROC_PHASE == 2:
-        if PHASE_INIT == 1:
-            output('PHASE 2 : R2 MOV003, R3 MOV003')
-            write_global_value('RUN_CMD_R2', 'MOV003')
-            write_global_value('RUN_CMD_R3', 'MOV003')
-            PHASE_INIT = 0
+    if CUR_STEP_R2 == 3 and CUR_STEP_R3 == 3:
+        Mov002_Turn()
+        
 
-        elif R2_STATE == 0 and R3_STATE == 0:
-            PROC_PHASE = 3
-            PHASE_INIT = 1
-
-    # -------------------------------------------------
-    # PHASE 3 : R3 MOV004
-    # -------------------------------------------------
-    elif PROC_PHASE == 3:
-        if PHASE_INIT == 1:
-            output('PHASE 3 : R3 MOV004')
-            write_global_value('RUN_CMD_R3', 'MOV004')
-            PHASE_INIT = 0
-
-        elif R3_STATE == 0:
-            PROC_PHASE = 4
-            PHASE_INIT = 1
-
-    # -------------------------------------------------
-    # PHASE 4 : R2 MOV004 + R3 MOV005
-    # -------------------------------------------------
-    elif PROC_PHASE == 4:
-        if PHASE_INIT == 1:
-            output('PHASE 4 : R2 MOV004, R3 MOV005')
-            write_global_value('RUN_CMD_R2', 'MOV004')
-            write_global_value('RUN_CMD_R3', 'MOV005')
-            PHASE_INIT = 0
-
-        elif R2_STATE == 0 and R3_STATE == 0:
-            PROC_PHASE = 5
-            PHASE_INIT = 1
-
-    # -------------------------------------------------
-    # PHASE 5 : R2 MOV005
-    # -------------------------------------------------
-    elif PROC_PHASE == 5:
-        if PHASE_INIT == 1:
-            output('PHASE 5 : R2 MOV005')
-            write_global_value('RUN_CMD_R2', 'MOV005')
-            PHASE_INIT = 0
-
-        elif R2_STATE == 0:
-            PROC_PHASE = 6
-            PHASE_INIT = 1
-
-    # -------------------------------------------------
-    # PHASE 6 : R2 MOV006
-    # -------------------------------------------------
-    elif PROC_PHASE == 6:
-        if PHASE_INIT == 1:
-            output('PHASE 6 : R2 MOV006')
-            write_global_value('RUN_CMD_R2', 'MOV006')
-            PHASE_INIT = 0
-
-        elif R2_STATE == 0:
-            PROC_PHASE = 7
-            PHASE_INIT = 1
-
-    # -------------------------------------------------
-    # PHASE 7 : R3 MOV006
-    # -------------------------------------------------
-    elif PROC_PHASE == 7:
-        if PHASE_INIT == 1:
-            output('PHASE 7 : R3 MOV006')
-            write_global_value('RUN_CMD_R3', 'MOV006')
-            PHASE_INIT = 0
-
-        elif R3_STATE == 0:
-            PROC_PHASE = 8
-            PHASE_INIT = 1
-
-    # -------------------------------------------------
-    # PHASE 8 : R3 MOV007 + R2 MOV002
-    # -------------------------------------------------
-    elif PROC_PHASE == 8:
-        if PHASE_INIT == 1:
-            output('PHASE 8 : R3 MOV007, R2 MOV002')
-            write_global_value('RUN_CMD_R3', 'MOV007')
-            write_global_value('RUN_CMD_R2', 'MOV002')
-            PHASE_INIT = 0
-
-        elif R2_STATE == 0 and R3_STATE == 0:
-            PROC_PHASE = 9
-            PHASE_INIT = 1
-
-    # -------------------------------------------------
-    # PHASE 9 : BODY HOME
-    # -------------------------------------------------
-    elif PROC_PHASE == 9:
-        if PHASE_INIT == 1:
-            output('PHASE 9 : BODY HOME')
-            Mov001_Home()
-            PHASE_INIT = 0
-            PROC_PHASE = 2
-            PHASE_INIT = 1
-
+    elif CUR_STEP_R3 == 7:
+        Mov001_Home()
+      
     wait(0.01)
+
 
 endwhile()
