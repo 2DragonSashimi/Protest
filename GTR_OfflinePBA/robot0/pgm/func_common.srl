@@ -1,0 +1,43 @@
+#test project, func_common.srl file
+load_tp('default')
+
+def Sub_ProgramStart(iIoNo):
+    io_out(OUT_PG_RUN_1, on)
+    io_out(OUT_PG_DONE_2,off)
+
+    if iIoNo != 1:
+       io_out(OUT_HOME_4,off)
+
+    if iIoNo == 16:
+       io_out(OUT_ALLOW_SEPARATOR_5,on)
+
+def Sub_ProgramEnd(iIoNo):
+    wait_io(IN_PGNO_SET, off, 5)
+    if io_in(IN_PGNO_SET) == TRUE:
+        io_out(OUT_ERROR_STOP_3, on)  
+        wait_io(IN_ERROR_RESET, on)
+    io_out(OUT_PG_RUN_1, off)
+    io_out(OUT_PG_DONE_2,on)
+    wait_io(IN_CEHCK_DONE, on, 5)
+    if io_in(IN_CEHCK_DONE) == FALSE:
+        io_out(OUT_ERROR_STOP_3, on)  
+        wait_io(IN_ERROR_RESET, on)
+    io_out(OUT_PG_DONE_2,off)
+
+    if iIoNo == 1:
+       io_out(OUT_HOME_4,on)
+
+def isHome_Body():
+    body_pos = get_pose()
+    # output(f'body_pos = {body_pos}')
+    if body_pos.rz <= BODY_RETURN_MAX and body_pos.rz >= BODY_RETURN_MIN:
+        return True
+    else:
+        return False 
+      
+def isTurn_Body():
+    body_pos = get_pose()
+    if body_pos.rz <= BODY_TURN_MAX and body_pos.rz >= BODY_TURN_MIN:
+        return True
+    else:
+        return False  

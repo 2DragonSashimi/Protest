@@ -1,0 +1,42 @@
+robot_info:
+  - name: Body
+    type: HEAD_TORSO
+    model: SRRB100490LD2A1L
+    has_tool_io: false
+    device_list:
+      []
+  - name: Head
+    type: HEAD_TORSO
+    model: SRRB100490LD2A1U
+    has_tool_io: false
+    device_list:
+      []
+  - name: Left_arm
+    type: SEVEN_DOF
+    model: SRRA050670LD2A1R
+    has_tool_io: false
+    device_list:
+      []
+  - name: Right_arm
+    type: SEVEN_DOF
+    model: SRRA050670LD2A1R
+    has_tool_io: false
+    device_list:
+      []
+device_info:
+  - {name: io_module, type: Coupler, model: NX-ECC201}
+coupler_info:
+  - name: io_module
+    config:
+      - model: NX-ID5342
+        name: ""
+        type: DI
+      - model: NX-OD5121
+        name: ""
+        type: DO
+analog_input_info:
+  []
+analog_output_info:
+  []
+gateway_info:
+  []

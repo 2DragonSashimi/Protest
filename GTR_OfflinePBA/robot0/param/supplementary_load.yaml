@@ -1,0 +1,9 @@
+min_req_version: 1500
+load1: {ixx: 0.0, iyy: 0.0, izz: 0.0, mass: 0.0, x: 0.0, y: 0.0, z: 0.0}
+load2: {ixx: 0.0, iyy: 0.0, izz: 0.0, mass: 0.0, x: 0.0, y: 0.0, z: 0.0}
+load3: {ixx: 0.0, iyy: 0.0, izz: 0.0, mass: 0.0, x: 0.0, y: 0.0, z: 0.0}
+load4: {ixx: 0.0, iyy: 0.0, izz: 0.0, mass: 0.0, x: 0.0, y: 0.0, z: 0.0}
+load5: {ixx: 0.0, iyy: 0.0, izz: 0.0, mass: 0.0, x: 0.0, y: 0.0, z: 0.0}
+load6: {ixx: 0.0, iyy: 0.0, izz: 0.0, mass: 0.0, x: 0.0, y: 0.0, z: 0.0}
+load7: {ixx: 0.0, iyy: 0.0, izz: 0.0, mass: 0.0, x: 0.0, y: 0.0, z: 0.0}
+load0: {ixx: 0.0, iyy: 0.0, izz: 0.0, mass: 0.0, x: 0.0, y: 0.0, z: 0.0}

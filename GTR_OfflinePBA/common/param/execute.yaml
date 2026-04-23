@@ -1,0 +1,14 @@
+script_list:
+  - default
+  - default
+  - default
+  - default
+robot_index_list:
+  - 0
+  - 1
+  - 2
+  - 3
+sbp_name: default
+step_run: false
+offline_run: false
+middle_exec_line: 0

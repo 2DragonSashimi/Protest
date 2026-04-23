@@ -1,0 +1,78 @@
+#test project, default.srl file
+load_tp('default')
+execfile('RobotMotion_0.srl')
+execfile('Define.srl')
+execfile('Define_IO.srl')
+execfile('func_sub.srl')
+execfile('func_common.srl')
+execfile('func_rmcs.srl')
+disable_log(None, ["write_global_value", "read_global_value", "wait"])
+
+if get_speed() < 30:
+   set_speed(20)
+
+################################################################################
+#ready for start
+write_global_value('RUN_CMD_R1', 'MOV000')
+write_global_value('RUN_CMD_R2', 'MOV000')
+write_global_value('RUN_CMD_R3', 'MOV000')
+mwait_sync(DEF_INIT, [0, 1, 2, 3])   
+################################################################################
+def Program_Select_Robot2():
+    global LAST_STEP_R2
+    robot_status = read_global_value('RETURN_R2')
+    if robot_status == -1: #Robot2 Busy
+        write_global_value('RUN_CMD_R2', 'MOV000')
+        return True
+
+    step = get_user_edit('STEP_R2')
+    if step == LAST_STEP_R2:
+        return True
+  
+    PG_NAME = "MOV" + f"{int(step):03d}" #ex) step = 1 >> PG_NAME = "MOV001"
+    output(f'Robot2 Program Start : {PG_NAME}')
+    write_global_value('RUN_CMD_R2', PG_NAME)
+    LAST_STEP_R2 = step
+    wait(0.1)
+  
+    return True
+
+
+def Program_Select_Robot3():
+    global LAST_STEP_R3
+    robot_status = read_global_value('RETURN_R3')
+    if robot_status == -1: #Robot2 Busy
+        write_global_value('RUN_CMD_R3', 'MOV000')
+        return True
+
+    step = get_user_edit('STEP_R3')
+    if step == LAST_STEP_R3:
+        return True
+  
+    PG_NAME = "MOV" + f"{int(step):03d}" #ex) step = 1 >> PG_NAME = "MOV001"
+    output(f'Robot3 Program Start : {PG_NAME}')
+    write_global_value('RUN_CMD_R3', PG_NAME)
+    LAST_STEP_R3 = step
+    wait(0.1)
+  
+    return True
+
+    
+
+#######################################
+#main task loop
+LAST_STEP_R2 = '0'
+LAST_STEP_R3 = '0'
+
+while True:
+    Program_Select_Robot2()
+    Program_Select_Robot3()
+  
+    if int(get_user_edit('BodyTurn')) == 1:
+        Mov002_Turn()
+    else:
+        Mov001_Home()
+  
+    wait(0.005)
+    endwhile()
+#######################################

@@ -1,0 +1,38 @@
+input:
+  names:
+    - di0
+    - di1
+    - di2
+    - di3
+    - di4
+    - di5
+    - di6
+    - di7
+    - di8
+    - di9
+    - di10
+    - di11
+    - di12
+    - di13
+    - di14
+    - di15
+  num_port: 16
+output:
+  names:
+    - do0
+    - do1
+    - do2
+    - do3
+    - do4
+    - do5
+    - do6
+    - do7
+    - do8
+    - do9
+    - do10
+    - do11
+    - do12
+    - do13
+    - do14
+    - do15
+  num_port: 16

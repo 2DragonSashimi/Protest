@@ -1,0 +1,25 @@
+project_manager:
+  active_tab: script
+floating_action_bar:
+  x: 268
+  y: 11
+message_filter:
+  message: ''
+  categories:
+    info: true
+    warn: true
+    error: true
+    fatal: true
+    debug: true
+  datetime:
+    from_enabled: false
+    to_enabled: false
+    from: 0
+    to: 0
+  alarm:
+    enabled: false
+    code: -1
+  source:
+    enabled: true
+    values:
+      - 5

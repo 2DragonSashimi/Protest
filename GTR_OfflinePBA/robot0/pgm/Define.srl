@@ -1,0 +1,61 @@
+#test project, Define.srl file
+TRUE = 1
+FALSE = 0
+
+TEACH_MODE = 0
+CONTINUOUS = TRUE #FALSE #TRUE
+MOTION_CONTINUOUS = TRUE #FALSE #TRUE 
+
+#STEP_R2 = '0'
+STEP_R3 = '0'
+
+CYL_WAIT_TIME = 1.5
+
+OV_HOME = 50
+OVERRIDE_NORMAL = 85
+OVERRIDE_MIDDLE = 75
+OVERRIDE_SLOW = 60
+OVERRIDE_CHECK = 22
+
+SPEED_NORMAL = 1500
+SPEED_MIDDLE = 1200
+SPEED_SLOW = 800
+
+
+BODY_RETURN_MIN = -180
+BODY_RETURN_MAX = 180
+BODY_TURN_MIN = -90
+BODY_TURN_MAX = 90
+
+
+IP = '127.1.0.0'
+
+
+SYNC_MOVE_LIST = [
+    'SYNC_MOVE_HOME',
+]
+for (i, name) in enumerate(SYNC_MOVE_LIST):
+    exec('{} = 1000 + i'.format(name))
+
+
+####################
+### STEPS
+####################
+
+    SYNC_LIST = [
+    'DEF_INIT',
+]
+
+for (i, name) in enumerate(SYNC_LIST):
+    exec('{} = 1+i'.format(name))
+
+####################
+### TOKEN
+####################
+
+    SYNC_TOKEN_LIST = [
+    'DEF_TOKEN_INIT',
+]
+
+for (i, name) in enumerate(SYNC_TOKEN_LIST):
+    exec('{} = 100 + i'.format(name))

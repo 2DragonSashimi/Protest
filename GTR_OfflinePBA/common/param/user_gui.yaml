@@ -1,0 +1,98 @@
+edit0:
+  enable: true
+  name: STEP_R2
+  type: input
+  items: 0
+  value: 2
+edit1:
+  enable: true
+  name: STEP_R3
+  type: input
+  items: 0
+  value: 1
+edit2:
+  enable: true
+  name: BodyTurn
+  type: input
+  items: 0
+  value: 0
+edit3:
+  enable: false
+  name: none
+  type: output
+  items: 0
+  value: 0
+edit4:
+  enable: false
+  name: none
+  type: output
+  items: 0
+  value: 0
+edit5:
+  enable: false
+  name: none
+  type: output
+  items: 0
+  value: 0
+edit6:
+  enable: false
+  name: none
+  type: output
+  items: 0
+  value: 0
+edit7:
+  enable: false
+  name: none
+  type: output
+  items: 0
+  value: 0
+button0:
+  enable: true
+  icon: play_arrow
+  name: servo on
+  robot_id: 0
+  value: servo_on.srl
+button1:
+  enable: true
+  icon: play_arrow
+  name: servo off
+  robot_id: 0
+  value: servo_off.srl
+button2:
+  enable: true
+  icon: play_arrow
+  name: Initial
+  robot_id: 0
+  value: initial.srl
+button3:
+  enable: false
+  icon: play_arrow
+  name: task3
+  robot_id: 0
+  value: task3.srl
+button4:
+  enable: false
+  icon: play_arrow
+  name: task4
+  robot_id: 0
+  value: task4.srl
+button5:
+  enable: false
+  icon: play_arrow
+  name: task5
+  robot_id: 0
+  value: task5.srl
+button6:
+  enable: false
+  icon: play_arrow
+  name: task6
+  robot_id: 0
+  value: task6.srl
+button7:
+  enable: true
+  icon: play_arrow
+  name: Default Run
+  robot_id: 0,1,2,3
+  value: default,default,default,default
+divider_height: 500
+ui_button_column: 4

@@ -1,0 +1,43 @@
+#test project, func_cylinder.srl file
+def Coupler2ClampFWD(skip = False):
+    ret = 0
+
+    io_out(OUT_COUPLER_2_CLAMP_CYL_F_18, on)
+    io_out(OUT_COUPLER_2_CLAMP_CYL_B_19, off)
+    if skip == TRUE:
+        return ret
+    else:
+        wait_io(IN_COUPLER_2_CLAMP_SEN_F_18, on, CYL_WAIT_TIME)
+        if io_in(IN_COUPLER_2_CLAMP_SEN_F_18):
+            return ret
+        else:
+            output('Coupler 2 Clamp FWD Error')
+            return 128105
+
+def Coupler2ClampBWD(skip = False):
+    ret = 0
+
+    io_out(OUT_COUPLER_2_CLAMP_CYL_F_18, off)
+    io_out(OUT_COUPLER_2_CLAMP_CYL_B_19, on)
+    if skip == TRUE:
+        return ret
+    else:
+        wait_io(IN_COUPLER_2_CLAMP_SEN_B_19, on, CYL_WAIT_TIME)
+        if io_in(IN_COUPLER_2_CLAMP_SEN_B_19):
+            return ret
+        else:
+            output('Coupler 2 Clamp BWD Error')
+            return 128106
+  
+
+def IsCoupler2ClampFWD():
+    if io_in(IN_COUPLER_2_CLAMP_SEN_F_18):
+        return TRUE
+    else:
+        return FALSE
+
+def IsCoupler2ClampBWD():
+    if io_in(IN_COUPLER_2_CLAMP_SEN_B_19):
+        return TRUE
+    else:
+        return FALSE

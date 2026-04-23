@@ -1,0 +1,61 @@
+#test project, func_sub.srl file
+load_tp('default')
+execfile('Define.srl')
+
+################################################################################
+#global Instance
+write_global_value('RETURN_ROBOT_0', 0)
+write_global_value('RETURN_ROBOT_1', 0)
+write_global_value('RETURN_ROBOT_2', 0)
+write_global_value('RETURN_ROBOT_3', 0)
+################################################################################
+
+def func_CheckError():
+    for i in range(0,4):
+        RETURN_ROBOT = read_global_value('RETURN_ROBOT_'+str(i))
+        if RETURN_ROBOT == 0:
+            continue
+        output('[output]RETURN_ROBOT_%d : { %s }'%(i, RETURN_ROBOT))
+        return_Error = 'Error : ' + str(RETURN_ROBOT)
+        output(return_Error)
+        io_out(OUT_ERROR_STOP_3, on)  
+
+    if get_io_out(OUT_ERROR_STOP_3):
+        wait_io(IN_ERROR_RESET, on, 10)
+        io_out(OUT_ERROR_STOP_3, off)  
+        return 1
+
+    return 0
+
+def Sub_ProgramStart(iIoNo):
+    io_out(OUT_ERROR_STOP_3, off) 
+    io_out(OUT_PG_RUN_1, on)
+    io_out(OUT_PG_DONE_2,off)
+    output('io_out(OUT_PG_RUN_1, on) 2') 
+
+    if iIoNo != 1:
+       io_out(OUT_HOME_4,off)
+
+def Sub_ProgramEnd(iIoNo):
+    io_out(OUT_PG_RUN_1, off)
+    io_out(OUT_PG_DONE_2,on)
+    wait_io(IN_CEHCK_DONE, on, 1)
+        
+    io_out(OUT_PG_DONE_2,off)
+    output('io_out(OUT_PG_DONE_2,off) 2') 
+
+    if iIoNo == 1 or iIoNo == 16:
+       io_out(OUT_HOME_4,on)
+
+def string_to_bool(s):
+  return s.lower().strip() == "true"
+
+def listcheck(s):
+  for i in range(0,len(s)):
+    if i ==0:
+      pass
+    elif s[i] == "true":
+      s[i] = string_to_bool(s[i])
+    elif s[i] == "false":
+      s[i] = string_to_bool(s[i])
+  return s

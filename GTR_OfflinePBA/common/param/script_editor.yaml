@@ -1,0 +1,20 @@
+robot:
+  -
+    - default
+    - RobotMotion_0
+    - Define_IO
+    - Define
+    - func_common
+    - func_sub
+    - func_rmcs
+    - func_cylinder
+  -
+    - default
+  -
+    - default
+  -
+    - default
+sbp:
+  - default
+sbp_auto_execution: true
+common: []

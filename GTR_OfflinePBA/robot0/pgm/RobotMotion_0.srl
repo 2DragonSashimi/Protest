@@ -1,0 +1,50 @@
+#GTR_OfflinePBA project, RobotMotion_0.srl file
+load_tp('default')
+
+def Mov001_Home():
+    # Program Start #
+    
+    # Flag & IO & Cylinder Init #
+    error_code = 0
+    # Check Work Space #
+    if isInPosition('M_prHome'):
+        return error_code
+    cur_pos = get_pose()
+    # Interface & Update Target #
+      
+    # Move Function #  
+    movej('M_prHome', stc=1)
+  
+    # Sub Motion #
+  
+    # Program End #
+    return error_code
+
+def Mov002_Turn():
+    # Program Start #
+    
+    # Flag & IO & Cylinder Init #
+    error_code = 0
+    # Check Work Space #
+    if isInPosition('M_prTurn'):
+        return error_code
+    cur_pos = get_pose()
+    # Interface & Update Target #
+      
+    # Move Function #  
+    movej('M_prTurn', stc=1)
+  
+    # Sub Motion #
+  
+    # Program End #
+    return error_code
+
+def isInPosition(position):
+    cur_pos = get_pose()
+    target_pos = get_pose(position)
+    rz = target_pos.rz - cur_pos.rz
+    return abs(rz) <= 0.5
+
+
+
+
