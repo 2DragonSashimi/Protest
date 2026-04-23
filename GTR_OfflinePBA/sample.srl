@@ -1,0 +1,30 @@
+def Program_Select_Robot2():
+    robot_status = read_global_value('RETURN_R2')
+    if robot_status == -1:
+        return True
+
+    step = int(get_user_edit('STEP_R2'))
+    if step == 0:
+        write_global_value('RUN_CMD_R2', 'MOV000')
+        return True
+
+    PG_NAME = "MOV" + f"{step:03d}"
+    write_global_value('RUN_CMD_R2', PG_NAME)
+    wait(0.1)
+    return True
+
+
+def Program_Select_Robot3():
+    robot_status = read_global_value('RETURN_R3')
+    if robot_status == -1:
+        return True
+
+    step = int(get_user_edit('STEP_R3'))
+    if step == 0:
+        write_global_value('RUN_CMD_R3', 'MOV000')
+        return True
+
+    PG_NAME = "MOV" + f"{step:03d}"
+    write_global_value('RUN_CMD_R3', PG_NAME)
+    wait(0.1)
+    return True
