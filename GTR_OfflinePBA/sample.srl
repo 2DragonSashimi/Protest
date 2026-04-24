@@ -8,74 +8,325 @@ execfile('func_rmcs.srl')
 
 disable_log(None, ["write_global_value", "read_global_value", "wait"])
 
+# =========================================================
+# Global init
+# =========================================================
 write_global_value('RUN_CMD_R2', 'MOV000')
 write_global_value('RUN_CMD_R3', 'MOV000')
 
+write_global_value('CMD_SEQ_R2', 0)
+write_global_value('CMD_SEQ_R3', 0)
+
+write_global_value('RETURN_R2', 0)
+write_global_value('RETURN_R3', 0)
+
+SEQ_R2 = 0
+SEQ_R3 = 0
+
+R2_STARTED = 0
+R3_STARTED = 0
+
 mwait_sync(DEF_INIT, [0, 1, 2, 3])
 
-CUR_STEP_R2 = 2
-CUR_STEP_R3 = 2
+# =========================================================
+# Helper functions
+# =========================================================
+def issue_r2(cmd):
+    global SEQ_R2
+    SEQ_R2 += 1
+    write_global_value('RUN_CMD_R2', cmd)
+    write_global_value('CMD_SEQ_R2', SEQ_R2)
+    output(f'ISSUE R2 : seq={SEQ_R2}, cmd={cmd}')
 
-WAIT_R2_DONE = 0
-WAIT_R3_DONE = 0
+def issue_r3(cmd):
+    global SEQ_R3
+    SEQ_R3 += 1
+    write_global_value('RUN_CMD_R3', cmd)
+    write_global_value('CMD_SEQ_R3', SEQ_R3)
+    output(f'ISSUE R3 : seq={SEQ_R3}, cmd={cmd}')
 
-R2_MIN = 2
-R2_MAX = 6
+def reset_wait_flags():
+    global R2_STARTED, R3_STARTED
+    R2_STARTED = 0
+    R3_STARTED = 0
 
-R3_MIN = 2
-R3_MAX = 7
+def update_started_flags(r2_state, r3_state):
+    global R2_STARTED, R3_STARTED
+    if r2_state == -1:
+        R2_STARTED = 1
+    if r3_state == -1:
+        R3_STARTED = 1
 
-# 추가: R2가 6 완료 후 R3의 7 완료까지 대기
-R2_WAIT_R3_7 = 0
+def r2_done(r2_state):
+    return R2_STARTED == 1 and r2_state == 0
+
+def r3_done(r3_state):
+    return R3_STARTED == 1 and r3_state == 0
+
+def both_done(r2_state, r3_state):
+    return r2_done(r2_state) and r3_done(r3_state)
+
+# =========================================================
+# Process phase
+# =========================================================
+PROC_PHASE = 0
+PHASE_INIT = 1
+PHASE_SUB = 0
 
 while True:
 
     R2_STATE = read_global_value('RETURN_R2')
-
-    # R2는 대기 플래그가 꺼져 있을 때만 새 명령 발행
-    if R2_WAIT_R3_7 == 0:
-        if WAIT_R2_DONE == 0:
-            PG_NAME = "MOV" + f"{CUR_STEP_R2:03d}"
-            output(f'Robot2 Program Start : {PG_NAME}')
-            write_global_value('RUN_CMD_R2', PG_NAME)
-            WAIT_R2_DONE = 1
-
-        elif WAIT_R2_DONE == 1 and R2_STATE == 0:
-            # R2가 6번 끝나면 바로 2로 안 가고 대기
-            if CUR_STEP_R2 == 6:
-                CUR_STEP_R2 = 2
-                R2_WAIT_R3_7 = 1
-            else:
-                CUR_STEP_R2 += 1
-                if CUR_STEP_R2 > R2_MAX:
-                    CUR_STEP_R2 = R2_MIN
-
-            WAIT_R2_DONE = 0
-
     R3_STATE = read_global_value('RETURN_R3')
 
-    if WAIT_R3_DONE == 0:
-        PG_NAME = "MOV" + f"{CUR_STEP_R3:03d}"
-        output(f'Robot3 Program Start : {PG_NAME}')
-        write_global_value('RUN_CMD_R3', PG_NAME)
-        WAIT_R3_DONE = 1
+    update_started_flags(R2_STATE, R3_STATE)
 
-    elif WAIT_R3_DONE == 1 and R3_STATE == 0:
-        # R3가 7번 완료되면 R2 대기 해제
-        if CUR_STEP_R3 == 7:
-            R2_WAIT_R3_7 = 0
+    # -----------------------------------------------------
+    # PHASE 0 : R2 MOV002 + R3 MOV002
+    # -----------------------------------------------------
+    if PROC_PHASE == 0:
+        if PHASE_INIT == 1:
+            output('PHASE 0 : R2 MOV002, R3 MOV002')
+            reset_wait_flags()
+            issue_r2('MOV002')
+            issue_r3('MOV002')
+            PHASE_INIT = 0
 
-        CUR_STEP_R3 += 1
-        if CUR_STEP_R3 > R3_MAX:
-            CUR_STEP_R3 = R3_MIN
-        WAIT_R3_DONE = 0
+        elif both_done(R2_STATE, R3_STATE):
+            PROC_PHASE = 1
+            PHASE_INIT = 1
 
-    if CUR_STEP_R2 == 3 and CUR_STEP_R3 == 3:
-        Mov002_Turn()
+    # -----------------------------------------------------
+    # PHASE 1 : BODY TURN
+    # -----------------------------------------------------
+    elif PROC_PHASE == 1:
+        if PHASE_INIT == 1:
+            output('PHASE 1 : BODY TURN')
+            Mov002_Turn()
+            PROC_PHASE = 2
+            PHASE_INIT = 1
+            PHASE_SUB = 0
 
-    elif CUR_STEP_R3 == 7:
-        Mov001_Home()
+    # -----------------------------------------------------
+    # PHASE 2 : R2 MOV003 + R3 MOV003 -> MOV004
+    # -----------------------------------------------------
+    elif PROC_PHASE == 2:
+
+        # SUB 0 : R2 MOV003 + R3 MOV003
+        if PHASE_SUB == 0:
+            if PHASE_INIT == 1:
+                output('PHASE 2-0 : R2 MOV003, R3 MOV003')
+                reset_wait_flags()
+                issue_r2('MOV003')
+                issue_r3('MOV003')
+                PHASE_INIT = 0
+
+            elif both_done(R2_STATE, R3_STATE):
+                PHASE_SUB = 1
+                PHASE_INIT = 1
+
+        # SUB 1 : R3 MOV004
+        elif PHASE_SUB == 1:
+            if PHASE_INIT == 1:
+                output('PHASE 2-1 : R3 MOV004')
+                reset_wait_flags()
+                issue_r3('MOV004')
+                PHASE_INIT = 0
+
+            elif r3_done(R3_STATE):
+                PROC_PHASE = 3
+                PHASE_INIT = 1
+                PHASE_SUB = 0
+
+    # -----------------------------------------------------
+    # PHASE 3 : R2 MOV004 -> MOV005 -> MOV006 + R3 MOV005
+    # -----------------------------------------------------
+    elif PROC_PHASE == 3:
+
+        # SUB 0 : R2 MOV004 + R3 MOV005
+        if PHASE_SUB == 0:
+            if PHASE_INIT == 1:
+                output('PHASE 3-0 : R2 MOV004, R3 MOV005')
+                reset_wait_flags()
+                issue_r2('MOV004')
+                issue_r3('MOV005')
+                PHASE_INIT = 0
+
+            elif both_done(R2_STATE, R3_STATE):
+                PHASE_SUB = 1
+                PHASE_INIT = 1
+
+        # SUB 1 : R2 MOV005
+        elif PHASE_SUB == 1:
+            if PHASE_INIT == 1:
+                output('PHASE 3-1 : R2 MOV005')
+                reset_wait_flags()
+                issue_r2('MOV005')
+                PHASE_INIT = 0
+
+            elif r2_done(R2_STATE):
+                PHASE_SUB = 2
+                PHASE_INIT = 1
+
+        # SUB 2 : R2 MOV006
+        elif PHASE_SUB == 2:
+            if PHASE_INIT == 1:
+                output('PHASE 3-2 : R2 MOV006')
+                reset_wait_flags()
+                issue_r2('MOV006')
+                PHASE_INIT = 0
+
+            elif r2_done(R2_STATE):
+                PROC_PHASE = 4
+                PHASE_INIT = 1
+                PHASE_SUB = 0
+
+    # -----------------------------------------------------
+    # PHASE 4 : R3 MOV006
+    # -----------------------------------------------------
+    elif PROC_PHASE == 4:
+        if PHASE_INIT == 1:
+            output('PHASE 4 : R3 MOV006')
+            reset_wait_flags()
+            issue_r3('MOV006')
+            PHASE_INIT = 0
+
+        elif r3_done(R3_STATE):
+            PROC_PHASE = 5
+            PHASE_INIT = 1
+
+    # -----------------------------------------------------
+    # PHASE 5 : R3 MOV007 + R2 MOV002
+    # -----------------------------------------------------
+    elif PROC_PHASE == 5:
+        if PHASE_INIT == 1:
+            output('PHASE 5 : R3 MOV007, R2 MOV002')
+            reset_wait_flags()
+            issue_r3('MOV007')
+            issue_r2('MOV002')
+            PHASE_INIT = 0
+
+        elif both_done(R2_STATE, R3_STATE):
+            PROC_PHASE = 6
+            PHASE_INIT = 1
+
+    # -----------------------------------------------------
+    # PHASE 6 : BODY HOME
+    # -----------------------------------------------------
+    elif PROC_PHASE == 6:
+        if PHASE_INIT == 1:
+            output('PHASE 6 : BODY HOME')
+            Mov001_Home()
+            PROC_PHASE = 2
+            PHASE_INIT = 1
+            PHASE_SUB = 0
 
     wait(0.01)
+
+endwhile()
+
+
+
+load_tp('default')
+execfile('RobotMotion_2.srl')
+execfile('../../robot0/pgm/Define.srl')
+execfile('../../robot0/pgm/Define_IO.srl')
+execfile('../../robot0/pgm/func_common.srl')
+
+funcResult = 0
+write_global_value('RETURN_R2', funcResult)
+
+mwait_sync(DEF_INIT, [0, 1, 2, 3])
+
+LAST_SEQ_R2 = read_global_value('CMD_SEQ_R2')
+
+while True:
+    CUR_SEQ_R2 = read_global_value('CMD_SEQ_R2')
+
+    if CUR_SEQ_R2 == LAST_SEQ_R2:
+        wait(0.005)
+        continue
+
+    PG_NAME = read_global_value('RUN_CMD_R2')
+    LAST_SEQ_R2 = CUR_SEQ_R2
+
+    output(f'R2 recv : seq={CUR_SEQ_R2}, cmd={PG_NAME}')
+    write_global_value('RETURN_R2', -1)
+
+    if PG_NAME == 'MOV002':
+        funcResult = Mov002_Inspec_Unload()
+
+    elif PG_NAME == 'MOV003':
+        funcResult = Mov003_BotHS_Pickup()
+
+    elif PG_NAME == 'MOV004':
+        funcResult = Mov004_BotHS_Load()
+
+    elif PG_NAME == 'MOV005':
+        funcResult = Mov005_BotHS_Remove()
+
+    elif PG_NAME == 'MOV006':
+        funcResult = Mov006_PBA_Load()
+
+    else:
+        funcResult = -999
+
+    write_global_value('RETURN_R2', funcResult)
+    output(f'R2 done : seq={CUR_SEQ_R2}, cmd={PG_NAME}, result={funcResult}')
+    wait(0.005)
+
+endwhile()
+
+
+
+load_tp('default')
+execfile('RobotMotion_3.srl')
+execfile('../../robot0/pgm/Define.srl')
+execfile('../../robot0/pgm/Define_IO.srl')
+execfile('../../robot0/pgm/func_common.srl')
+
+funcResult = 0
+write_global_value('RETURN_R3', funcResult)
+
+mwait_sync(DEF_INIT, [0, 1, 2, 3])
+
+LAST_SEQ_R3 = read_global_value('CMD_SEQ_R3')
+
+while True:
+    CUR_SEQ_R3 = read_global_value('CMD_SEQ_R3')
+
+    if CUR_SEQ_R3 == LAST_SEQ_R3:
+        wait(0.005)
+        continue
+
+    PG_NAME = read_global_value('RUN_CMD_R3')
+    LAST_SEQ_R3 = CUR_SEQ_R3
+
+    output(f'R3 recv : seq={CUR_SEQ_R3}, cmd={PG_NAME}')
+    write_global_value('RETURN_R3', -1)
+
+    if PG_NAME == 'MOV002':
+        funcResult = Mov002_Box_Load()
+
+    elif PG_NAME == 'MOV003':
+        funcResult = Mov003_Press_Unload()
+
+    elif PG_NAME == 'MOV004':
+        funcResult = Mov004_SB_Load()
+
+    elif PG_NAME == 'MOV005':
+        funcResult = Mov005_TopHS_Pick()
+
+    elif PG_NAME == 'MOV006':
+        funcResult = Mov006_TopHS_Load()
+
+    elif PG_NAME == 'MOV007':
+        funcResult = Mov007_SB_Unload()
+
+    else:
+        funcResult = -999
+
+    write_global_value('RETURN_R3', funcResult)
+    output(f'R3 done : seq={CUR_SEQ_R3}, cmd={PG_NAME}, result={funcResult}')
+    wait(0.005)
 
 endwhile()
