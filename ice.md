@@ -274,44 +274,97 @@ DY = [-1, 0, 1, 0]
 DX = [0, 1, 0, -1]
 
 
-def _collect_component(sy, sx, visited, new_gid, comp_id):
-    global N_SIZE, height
+def collect_components(cur_height, source_grid=None):
+    """
+    현재 height grid 기준으로 연결된 얼음 component들을 찾는다.
 
-    q = deque()
-    q.append((sy, sx))
-    visited[sy][sx] = True
+    역할:
+    - BFS로 현재 빙하 component를 찾음
+    - 새 gid grid 생성
+    - 각 component의 area, volume, pos 계산
+    - source_grid가 주어지면 component에 포함된 source 정보 수집
 
-    cells = []
-    area = 0
-    volume = 0
-    pos_y, pos_x = sy, sx
+    source_grid의 의미:
+    1. init:
+       대표 좌표에만 방향 값이 들어 있는 dir_grid
 
-    while q:
-        y, x = q.popleft()
+    2. 융해 후:
+       old_gid[y][x]
+       -> 이 cell이 융해 전 어떤 group이었는지
 
-        new_gid[y][x] = comp_id
-        cells.append((y, x))
+    3. 이동 후:
+       moved_sources[y][x]
+       -> 이 좌표에 어떤 group들이 도착했는지
+    """
+    N = len(cur_height)
 
-        area += 1
-        volume += height[y][x]
+    visited = [[False] * N for _ in range(N)]
+    new_gid = [[-1] * N for _ in range(N)]
+    components = []
 
-        if y < pos_y or (y == pos_y and x < pos_x):
-            pos_y, pos_x = y, x
+    comp_id = 0
 
-        for k in range(4):
-            ny = (y + DY[k]) % N_SIZE
-            nx = (x + DX[k]) % N_SIZE
-
-            if visited[ny][nx]:
+    for sy in range(N):
+        for sx in range(N):
+            if cur_height[sy][sx] == 0:
                 continue
 
-            if height[ny][nx] == 0:
+            if visited[sy][sx]:
                 continue
 
-            visited[ny][nx] = True
-            q.append((ny, nx))
+            q = deque()
+            q.append((sy, sx))
+            visited[sy][sx] = True
 
-    return cells, area, volume, pos_y, pos_x
+            area = 0
+            volume = 0
+            pos_y, pos_x = sy, sx
+            sources = set()
+
+            while q:
+                y, x = q.popleft()
+
+                new_gid[y][x] = comp_id
+
+                area += 1
+                volume += cur_height[y][x]
+
+                if y < pos_y or (y == pos_y and x < pos_x):
+                    pos_y, pos_x = y, x
+
+                if source_grid is not None:
+                    src = source_grid[y][x]
+
+                    if isinstance(src, set):
+                        sources.update(src)
+                    elif isinstance(src, list):
+                        sources.update(src)
+                    elif src is not None and src != -1:
+                        sources.add(src)
+
+                for k in range(4):
+                    ny = (y + DY[k]) % N
+                    nx = (x + DX[k]) % N
+
+                    if visited[ny][nx]:
+                        continue
+
+                    if cur_height[ny][nx] == 0:
+                        continue
+
+                    visited[ny][nx] = True
+                    q.append((ny, nx))
+
+            components.append({
+                "area": area,
+                "volume": volume,
+                "pos": (pos_y, pos_x),
+                "sources": sources,
+            })
+
+            comp_id += 1
+
+    return components, new_gid
 
 
 def init(N, M, mIceBlock, mIceGroup):
@@ -319,45 +372,46 @@ def init(N, M, mIceBlock, mIceGroup):
 
     N_SIZE = N
     height = [mIceBlock[y][:] for y in range(N)]
-    gid = [[-1] * N for _ in range(N)]
     groups = {}
 
-    visited = [[False] * N for _ in range(N)]
-    comp_id = 0
+    # mIceGroup은 X, Y, 방향 순서
+    # dir_grid[y][x]에는 해당 초기 빙하 대표 좌표의 방향만 저장한다.
+    dir_grid = [[-1] * N for _ in range(N)]
 
     for i in range(M):
-        # mIceGroup은 X, Y, 방향 순서로 주어진다.
         x = mIceGroup[i][0]
         y = mIceGroup[i][1]
         d = mIceGroup[i][2]
 
-        if height[y][x] == 0:
-            continue
+        dir_grid[y][x] = d
 
-        if visited[y][x]:
-            continue
+    components, gid = collect_components(height, dir_grid)
 
-        cells, area, volume, py, px = _collect_component(
-            y, x, visited, gid, comp_id
-        )
+    for g, comp in enumerate(components):
+        # 각 초기 component에는 mIceGroup 대표 좌표가 정확히 하나 포함된다.
+        direction = next(iter(comp["sources"]))
 
-        groups[comp_id] = {
-            "dir": d,
-            "area": area,
-            "volume": volume,
-            "pos": (py, px),
-            "cells": cells,
+        groups[g] = {
+            "dir": direction,
+            "area": comp["area"],
+            "volume": comp["volume"],
+            "pos": comp["pos"],
         }
-
-        comp_id += 1
 
 
 def _melt():
-    global N_SIZE, height, gid
+    """
+    융해 처리.
+
+    현재 height 기준으로 바다와 인접한 얼음들을 먼저 모두 찾고,
+    그 뒤 한 번에 높이를 1 감소시킨다.
+
+    즉, 동시 융해를 보장한다.
+    """
+    global height
 
     melt_cells = []
 
-    # 동시 융해 처리를 위해 먼저 녹을 칸을 전부 찾는다.
     for y in range(N_SIZE):
         for x in range(N_SIZE):
             if height[y][x] == 0:
@@ -371,193 +425,174 @@ def _melt():
                     melt_cells.append((y, x))
                     break
 
-    # 찾은 칸들을 한 번에 감소시킨다.
     for y, x in melt_cells:
         height[y][x] -= 1
 
-        if height[y][x] == 0:
-            gid[y][x] = -1
 
+def _rebuild_after_melt(old_gid, old_groups):
+    """
+    융해 후 component를 다시 찾는다.
 
-def _rebuild_after_melt(old_gid, old_dir):
-    global N_SIZE, height
+    융해로 인해 하나의 빙하가 여러 개로 나뉠 수 있다.
+    나뉜 조각들은 원래 빙하의 방향을 그대로 상속한다.
 
-    new_gid = [[-1] * N_SIZE for _ in range(N_SIZE)]
+    방향 결정:
+        새 component의 source = old_gid
+        direction = old_groups[source]["dir"]
+    """
+    components, new_gid = collect_components(height, old_gid)
+
     new_groups = {}
-    visited = [[False] * N_SIZE for _ in range(N_SIZE)]
 
-    comp_id = 0
+    for g, comp in enumerate(components):
+        src_gid = next(iter(comp["sources"]))
+        direction = old_groups[src_gid]["dir"]
 
-    for y in range(N_SIZE):
-        for x in range(N_SIZE):
-            if height[y][x] == 0:
-                continue
-
-            if visited[y][x]:
-                continue
-
-            # 융해 후 살아남은 cell은 융해 전 어떤 빙하에 속했는지 알고 있다.
-            # 분리된 조각은 원래 빙하의 방향을 그대로 상속한다.
-            src_gid = old_gid[y][x]
-            d = old_dir[src_gid]
-
-            cells, area, volume, py, px = _collect_component(
-                y, x, visited, new_gid, comp_id
-            )
-
-            new_groups[comp_id] = {
-                "dir": d,
-                "area": area,
-                "volume": volume,
-                "pos": (py, px),
-                "cells": cells,
-            }
-
-            comp_id += 1
+        new_groups[g] = {
+            "dir": direction,
+            "area": comp["area"],
+            "volume": comp["volume"],
+            "pos": comp["pos"],
+        }
 
     return new_gid, new_groups
 
 
-def _move_and_merge():
-    global N_SIZE, height, gid, groups
+def _make_pre_info(cur_groups):
+    """
+    이동 후 병합 방향 결정은 이동 전 상태 기준이다.
 
-    # 병합 후 방향 결정은 이동 전 상태 기준이므로 미리 저장한다.
+    따라서 이동하기 직전의 group 정보를 따로 저장한다.
+    """
     pre_info = {}
 
-    for g, info in groups.items():
-        pre_info[g] = (
-            info["volume"],
-            info["area"],
-            info["pos"][0],
-            info["pos"][1],
-            info["dir"],
-        )
+    for g, info in cur_groups.items():
+        pre_info[g] = {
+            "volume": info["volume"],
+            "area": info["area"],
+            "pos": info["pos"],
+            "dir": info["dir"],
+        }
 
-    moved_height = [[0] * N_SIZE for _ in range(N_SIZE)]
-    moved_sources = [[[] for _ in range(N_SIZE)] for _ in range(N_SIZE)]
+    return pre_info
 
-    # 모든 빙하를 동시에 이동시킨다.
-    for g, info in groups.items():
-        d = info["dir"]
 
-        for y, x in info["cells"]:
-            ny = (y + DY[d]) % N_SIZE
-            nx = (x + DX[d]) % N_SIZE
+def _move_only(cur_height, cur_gid, cur_groups):
+    """
+    이동만 수행한다.
 
-            h = height[y][x]
+    BFS를 하지 않는다.
 
-            # 같은 좌표로 겹치면 높이가 큰 얼음만 남긴다.
+    각 얼음 cell은 자신이 속한 group의 방향으로 1칸 이동한다.
+    같은 좌표로 여러 얼음이 이동하면 높이가 가장 큰 얼음만 남는다.
+
+    단, 낮아서 사라진 얼음도 충돌에 참여한 것이므로
+    moved_sources에는 해당 좌표에 도착한 모든 group id를 기록한다.
+    """
+    N = len(cur_height)
+
+    moved_height = [[0] * N for _ in range(N)]
+    moved_sources = [[set() for _ in range(N)] for _ in range(N)]
+
+    for y in range(N):
+        for x in range(N):
+            if cur_height[y][x] == 0:
+                continue
+
+            g = cur_gid[y][x]
+            d = cur_groups[g]["dir"]
+
+            ny = (y + DY[d]) % N
+            nx = (x + DX[d]) % N
+
+            h = cur_height[y][x]
+
             if h > moved_height[ny][nx]:
                 moved_height[ny][nx] = h
 
-            # 해당 좌표에 도착한 모든 빙하를 기록한다.
-            # 낮은 얼음이 사라져도 충돌에 참여했으므로 source로 남겨야 한다.
-            moved_sources[ny][nx].append(g)
+            moved_sources[ny][nx].add(g)
 
-    height = moved_height
+    return moved_height, moved_sources
 
-    # 이동 후 겹침/인접에 의해 병합된 빙하를 BFS로 다시 찾는다.
-    new_gid = [[-1] * N_SIZE for _ in range(N_SIZE)]
+
+def _rebuild_after_move(moved_height, moved_sources, pre_info):
+    """
+    이동 후 component를 다시 찾는다.
+
+    이동 후에는 서로 다른 빙하가
+    1. 같은 좌표에 겹치거나
+    2. 상하좌우로 인접하여
+    하나의 빙하가 될 수 있다.
+
+    방향 결정:
+        병합에 참여한 source group들 중
+        이동 전 상태 기준으로 우선순위가 가장 높은 group의 방향을 따른다.
+
+    우선순위:
+        1. 부피 큰 것
+        2. 부피 같으면 면적 작은 것
+        3. 면적 같으면 Y 작은 것
+        4. Y 같으면 X 작은 것
+    """
+    components, new_gid = collect_components(moved_height, moved_sources)
+
     new_groups = {}
-    visited = [[False] * N_SIZE for _ in range(N_SIZE)]
 
-    comp_id = 0
+    for g, comp in enumerate(components):
+        sources = comp["sources"]
 
-    for sy in range(N_SIZE):
-        for sx in range(N_SIZE):
-            if height[sy][sx] == 0:
-                continue
-
-            if visited[sy][sx]:
-                continue
-
-            q = deque()
-            q.append((sy, sx))
-            visited[sy][sx] = True
-
-            cells = []
-            sources = set()
-
-            area = 0
-            volume = 0
-            pos_y, pos_x = sy, sx
-
-            while q:
-                y, x = q.popleft()
-
-                new_gid[y][x] = comp_id
-                cells.append((y, x))
-
-                area += 1
-                volume += height[y][x]
-
-                sources.update(moved_sources[y][x])
-
-                if y < pos_y or (y == pos_y and x < pos_x):
-                    pos_y, pos_x = y, x
-
-                for k in range(4):
-                    ny = (y + DY[k]) % N_SIZE
-                    nx = (x + DX[k]) % N_SIZE
-
-                    if visited[ny][nx]:
-                        continue
-
-                    if height[ny][nx] == 0:
-                        continue
-
-                    visited[ny][nx] = True
-                    q.append((ny, nx))
-
-            # 병합 후 방향 결정:
-            # 1. 부피가 큰 빙하
-            # 2. 부피가 같으면 면적이 작은 빙하
-            # 3. 면적이 같으면 위치 Y가 작은 빙하
-            # 4. Y가 같으면 위치 X가 작은 빙하
-            best_src = min(
-                sources,
-                key=lambda src: (
-                    -pre_info[src][0],
-                    pre_info[src][1],
-                    pre_info[src][2],
-                    pre_info[src][3],
-                ),
+        best_src = min(
+            sources,
+            key=lambda src: (
+                -pre_info[src]["volume"],
+                pre_info[src]["area"],
+                pre_info[src]["pos"][0],
+                pre_info[src]["pos"][1],
             )
+        )
 
-            new_dir = pre_info[best_src][4]
+        direction = pre_info[best_src]["dir"]
 
-            new_groups[comp_id] = {
-                "dir": new_dir,
-                "area": area,
-                "volume": volume,
-                "pos": (pos_y, pos_x),
-                "cells": cells,
-            }
+        new_groups[g] = {
+            "dir": direction,
+            "area": comp["area"],
+            "volume": comp["volume"],
+            "pos": comp["pos"],
+        }
 
-            comp_id += 1
-
-    gid = new_gid
-    groups = new_groups
+    return new_gid, new_groups
 
 
 def oneYearLater():
     global height, gid, groups
 
-    # 융해 후 분리된 빙하의 방향 상속을 위해 이전 상태를 저장한다.
+    # 융해 후 방향 상속을 위해 융해 전 상태 저장
     old_gid = [row[:] for row in gid]
-    old_dir = {}
+    old_groups = {}
 
     for g, info in groups.items():
-        old_dir[g] = info["dir"]
+        old_groups[g] = {
+            "dir": info["dir"],
+            "area": info["area"],
+            "volume": info["volume"],
+            "pos": info["pos"],
+        }
 
     # 1. 융해
     _melt()
 
     # 2. 융해 후 분리된 빙하 재구성
-    gid, groups = _rebuild_after_melt(old_gid, old_dir)
+    gid, groups = _rebuild_after_melt(old_gid, old_groups)
 
-    # 3. 이동 + 병합
-    _move_and_merge()
+    # 3. 이동 전 상태 저장
+    pre_info = _make_pre_info(groups)
+
+    # 4. 이동만 수행
+    moved_height, moved_sources = _move_only(height, gid, groups)
+
+    # 5. 이동 후 병합된 빙하 재구성
+    height = moved_height
+    gid, groups = _rebuild_after_move(height, moved_sources, pre_info)
 
     return RESULT([row[:] for row in height])
 ```
