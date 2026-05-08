@@ -1,8 +1,8 @@
 # 8x8 보석 교환 게임 시뮬레이션 문제 정리
 
-## 1. 문제 개요
+## 1. 문제 핵심
 
-`8 x 8` 크기의 보드가 있다.
+`8 x 8` 보드에서 보석을 교환하고, 같은 보석이 가로 또는 세로로 3개 이상 연속되면 삭제하여 점수를 얻는 문제이다.
 
 좌표계는 다음과 같다.
 
@@ -11,61 +11,25 @@
 좌표 표기 = (Y, X)
 ```
 
-즉, `Y`가 커질수록 위쪽이고, `X`가 커질수록 오른쪽이다.
-
-플레이어는 매 턴 하나의 기준 좌표를 선택하고, 그 좌표의 보석을 다음 중 하나와 교환한다.
+즉:
 
 ```text
-1. 오른쪽 인접 보석
-2. 위쪽 인접 보석
+y = 0 아래쪽
+y = 7 위쪽
+x = 0 왼쪽
+x = 7 오른쪽
 ```
 
-교환 후 가로나 세로 방향으로 같은 보석이 3개 이상 연속되면 해당 보석들이 삭제되고 점수를 얻는다.
+플레이어는 매 턴 기준 좌표 하나를 고르고, 그 오른쪽 또는 위쪽 인접 보석과 교환한다.
 
-삭제 후 빈 공간은 위에서 내려오는 예비 보석으로 채운다.
-
-보석을 채운 뒤 다시 3개 이상 연속되는 보석이 생기면 삭제되고 추가 점수를 얻는다.
-
-이 과정은 더 이상 삭제될 보석이 없을 때까지 반복된다.
+```text
+오른쪽 교환: (y, x) ↔ (y, x + 1)
+위쪽 교환:   (y, x) ↔ (y + 1, x)
+```
 
 ---
 
-## 2. 보석과 예비 보석
-
-보석 종류는 6가지이다.
-
-```text
-1 ~ 6
-```
-
-초기 보드는 비어 있다.
-
-`init(N, mJewels)`에서 예비 보석이 `N`줄 주어진다.
-
-각 줄에는 8개의 보석이 있다.
-
-예비 보석은 index가 낮은 순서부터 차례대로 보드에 공급된다.
-
-구현에서는 column별 공급 포인터를 둔다.
-
-```python
-supply_idx[x]
-```
-
-`x`열에 다음으로 들어올 예비 보석의 row index이다.
-
-예를 들어 `x`열의 빈칸을 채울 때:
-
-```python
-board[y][x] = supply[supply_idx[x]][x]
-supply_idx[x] += 1
-```
-
-처럼 사용한다.
-
----
-
-## 3. 점수 규칙
+## 2. 점수 규칙
 
 같은 보석이 연속된 길이에 따라 점수가 정해진다.
 
@@ -75,16 +39,16 @@ supply_idx[x] += 1
 | 4개 | 4점 |
 | 5개 이상 | 9점 |
 
-가로와 세로에서 동시에 삭제되는 줄이 여러 개 있으면 점수를 모두 합산한다.
+가로와 세로에서 동시에 삭제되는 줄이 여러 개 있으면 점수는 모두 합산한다.
 
-주의할 점:
+주의:
 
 ```text
-겹치는 cell은 한 번만 삭제된다.
-하지만 점수는 줄 단위로 각각 합산된다.
+같은 cell이 가로/세로 매치에 동시에 포함되면 삭제는 한 번만 한다.
+하지만 점수는 가로 줄, 세로 줄 각각 계산해서 합산한다.
 ```
 
-예를 들어 십자 모양으로 가로 3개와 세로 3개가 동시에 만들어졌다면:
+예를 들어 십자 모양으로 가로 3개, 세로 3개가 동시에 만들어지면:
 
 ```text
 가로 3개 = 1점
@@ -92,265 +56,525 @@ supply_idx[x] += 1
 총점 = 2점
 ```
 
-겹치는 가운데 보석은 한 번만 삭제된다.
-
 ---
 
-## 4. 매 턴 진행 과정
+## 3. 턴 진행 과정
 
-매 턴은 다음 3단계로 진행된다.
+한 턴은 다음 순서로 진행된다.
 
 ```text
 1. 보드를 준비 상태로 만든다.
-2. 최적의 교환 위치를 선택하고 교환한다.
-3. 삭제, 보충, 연쇄 삭제를 처리한다.
+2. 가능한 교환 중 최적 교환을 선택한다.
+3. 실제 교환 후 삭제, 보충, 연쇄 삭제를 처리한다.
 ```
 
 ---
 
-## 5. 준비 상태
+## 4. 준비 상태
 
-보드가 준비 상태가 되려면 다음 3가지 조건을 만족해야 한다.
+턴 시작 전 보드는 반드시 준비 상태가 되어야 한다.
+
+준비 상태 조건은 다음과 같다.
 
 ```text
-1. 보드 내 빈 공간이 없어야 한다.
-2. 같은 보석이 3개 이상 연속되는 경우가 없어야 한다.
-3. 인접한 2개의 보석을 교환하여 점수를 얻을 수 있는 방법이 최소 1가지 있어야 한다.
+1. 빈칸이 없어야 한다.
+2. 현재 3개 이상 연속된 보석이 없어야 한다.
+3. 교환해서 점수를 얻을 수 있는 방법이 최소 1개 있어야 한다.
 ```
 
-준비 상태를 만드는 과정은 다음과 같다.
+준비 과정은 다음과 같다.
 
 ```text
-1. 빈칸을 예비 보석으로 채운다.
-2. 3개 이상 연속된 보석이 있으면 삭제한다.
-3. 다시 빈칸을 채운다.
-4. 더 이상 삭제되는 보석이 없을 때까지 반복한다.
-5. 가능한 교환이 있는지 검사한다.
-6. 가능한 교환이 하나도 없으면 전체 보드를 삭제하고 다시 준비 과정을 반복한다.
+빈칸 채우기
+→ 매치 검사
+→ 매치가 있으면 삭제
+→ 다시 빈칸 채우기
+→ 매치가 없을 때까지 반복
+→ 가능한 교환이 있는지 확인
+→ 가능한 교환이 없으면 보드 전체 삭제 후 다시 준비
 ```
 
 주의:
 
 ```text
-준비 상태를 만드는 과정에서 삭제되는 보석은 점수에 포함하지 않는다.
+준비 상태를 만들면서 삭제되는 보석의 점수는 반환 점수에 포함하지 않는다.
 ```
-
-점수는 플레이어가 실제 교환을 수행한 뒤부터 계산한다.
 
 ---
 
-## 6. 빈칸 채우기
-
-빈칸은 위에서 내려오는 보석들로 채워진다.
-
-좌표계상 `y=0`이 아래쪽이고 `y=7`이 위쪽이다.
-
-따라서 각 열마다 다음 순서로 처리한다.
-
-```text
-1. 현재 열의 기존 보석들을 아래에서 위로 모은다.
-2. 아래쪽부터 기존 보석들을 다시 배치한다.
-3. 남은 위쪽 빈칸을 예비 보석으로 채운다.
-```
-
-구현 예:
+## 5. 핵심 상태
 
 ```python
-def _fill_empty():
-    for x in range(8):
-        remain = []
+BOARD = 8
+EMPTY = 0
 
-        for y in range(8):
-            if board[y][x] != 0:
-                remain.append(board[y][x])
+board[y][x]
+```
 
+현재 보드 상태이다.
+
+```text
+0이면 빈칸
+1~6이면 보석
+```
+
+예비 보석은 다음처럼 관리한다.
+
+```python
+jewels[row][x]
+jewel_idx[x]
+```
+
+의미:
+
+```text
+jewel_idx[x] = x열에서 다음으로 사용할 예비 보석 row index
+```
+
+빈칸을 채울 때:
+
+```python
+board[y][x] = jewels[jewel_idx[x]][x]
+jewel_idx[x] += 1
+```
+
+---
+
+## 6. 중력 / 보충 처리
+
+이 문제에서 `y=0`은 아래쪽이다.
+
+따라서 보석이 아래로 떨어진다는 것은:
+
+```text
+각 열마다 살아있는 보석들을 y=0부터 다시 쌓는다.
+남은 위쪽 칸은 예비 보석으로 채운다.
+```
+
+예를 들어 한 열이 아래에서 위로 다음과 같다고 하자.
+
+```text
+[2, 0, 3, 0, 4, 0, 1, 0]
+```
+
+중력 적용 후 기존 보석은 아래로 모인다.
+
+```text
+[2, 3, 4, 1, ?, ?, ?, ?]
+```
+
+`?` 위치는 예비 보석으로 채운다.
+
+---
+
+## 7. write pointer 방식
+
+중력 처리는 `write pointer`로 구현할 수 있다.
+
+```python
+def _fill_board():
+    for x in range(BOARD):
+        write = 0
+
+        for y in range(BOARD):
+            if board[y][x] != EMPTY:
+                board[write][x] = board[y][x]
+                write += 1
+
+        while write < BOARD:
+            board[write][x] = jewels[jewel_idx[x]][x]
+            jewel_idx[x] += 1
+            write += 1
+```
+
+여기서 `write`는:
+
+```text
+다음 보석이 떨어져야 하는 위치
+```
+
+를 의미한다.
+
+아래에서 위로 보면서 살아있는 보석을 만나면 `board[write][x]`에 넣고 `write`를 증가시킨다.
+
+이후 `write`부터 위쪽까지는 예비 보석으로 덮어쓴다.
+
+기존 값이 남아 있어도 어차피 덮어쓰기 때문에 따로 0으로 초기화할 필요는 없다.
+
+---
+
+## 8. 전체 매치 검사
+
+전체 보드에서 삭제될 보석을 찾는 함수가 필요하다.
+
+이 함수는 다음 상황에서 사용한다.
+
+```text
+1. 준비 상태 만들기
+2. 연쇄 삭제 cascade 처리
+```
+
+전체 매치 검사에서는 가로 8줄, 세로 8줄을 모두 검사한다.
+
+```python
+def _find_matches_full():
+    total_score = 0
+    mark = [[False] * BOARD for _ in range(BOARD)]
+
+    # 가로 검사
+    for y in range(BOARD):
+        x = 0
+        while x < BOARD:
+            v = board[y][x]
+
+            if v == EMPTY:
+                x += 1
+                continue
+
+            start = x
+
+            while x < BOARD and board[y][x] == v:
+                x += 1
+
+            length = x - start
+
+            if length >= 3:
+                total_score += _score(length)
+                for cx in range(start, x):
+                    mark[y][cx] = True
+
+    # 세로 검사
+    for x in range(BOARD):
         y = 0
+        while y < BOARD:
+            v = board[y][x]
 
-        for jewel in remain:
-            board[y][x] = jewel
-            y += 1
+            if v == EMPTY:
+                y += 1
+                continue
 
-        while y < 8:
-            idx = supply_idx[x]
-            board[y][x] = supply[idx][x]
-            supply_idx[x] += 1
-            y += 1
+            start = y
+
+            while y < BOARD and board[y][x] == v:
+                y += 1
+
+            length = y - start
+
+            if length >= 3:
+                total_score += _score(length)
+                for cy in range(start, y):
+                    mark[cy][x] = True
+
+    cells = []
+
+    for y in range(BOARD):
+        for x in range(BOARD):
+            if mark[y][x]:
+                cells.append((y, x))
+
+    return total_score, cells
+```
+
+`mark`를 쓰는 이유:
+
+```text
+가로/세로가 겹치는 cell도 삭제는 한 번만 하기 위해서
+```
+
+점수는 줄 단위로 더하고, 삭제 좌표는 중복 없이 표시한다.
+
+---
+
+## 9. 후보 교환 평가 최적화
+
+처음에는 후보 교환마다 전체 보드를 검사할 수 있다.
+
+```text
+후보 최대 112개
+각 후보마다 전체 보드 매치 검사
+```
+
+하지만 이러면 타임아웃이 날 수 있다.
+
+최적화 핵심:
+
+```text
+준비 상태에서는 이미 3개 이상 연속이 없다.
+따라서 두 보석을 교환했을 때 새로 생기는 매치는 반드시 교환된 두 좌표 중 하나를 포함한다.
+```
+
+즉 후보 평가 시 전체 보드를 볼 필요가 없다.
+
+다음 네 줄만 보면 된다.
+
+```text
+교환된 첫 번째 좌표의 가로줄
+교환된 첫 번째 좌표의 세로줄
+교환된 두 번째 좌표의 가로줄
+교환된 두 번째 좌표의 세로줄
 ```
 
 ---
 
-## 7. 삭제 대상 찾기
+## 10. 특정 좌표 주변 매치 검사
 
-현재 보드에서 가로/세로 방향으로 3개 이상 연속된 보석을 찾는다.
-
-가로 검사:
-
-```text
-각 행 y에 대해 x를 증가시키며 같은 보석 구간 길이 확인
-```
-
-세로 검사:
-
-```text
-각 열 x에 대해 y를 증가시키며 같은 보석 구간 길이 확인
-```
-
-삭제 대상은 `set`으로 관리한다.
+특정 좌표를 포함하는 가로 또는 세로 연속 구간을 찾는다.
 
 ```python
-remove_cells = set()
+def _line_run(y: int, x: int, horizontal: bool):
+    v = board[y][x]
+
+    if v == EMPTY:
+        return 0, [], None
+
+    cells = [(y, x)]
+
+    if horizontal:
+        cx = x - 1
+        while cx >= 0 and board[y][cx] == v:
+            cells.append((y, cx))
+            cx -= 1
+
+        cx = x + 1
+        while cx < BOARD and board[y][cx] == v:
+            cells.append((y, cx))
+            cx += 1
+
+        xs = [c[1] for c in cells]
+        key = ("H", y, min(xs), max(xs))
+
+    else:
+        cy = y - 1
+        while cy >= 0 and board[cy][x] == v:
+            cells.append((cy, x))
+            cy -= 1
+
+        cy = y + 1
+        while cy < BOARD and board[cy][x] == v:
+            cells.append((cy, x))
+            cy += 1
+
+        ys = [c[0] for c in cells]
+        key = ("V", x, min(ys), max(ys))
+
+    return len(cells), cells, key
 ```
 
-이렇게 해야 가로와 세로가 겹치는 cell도 한 번만 삭제된다.
+`key`는 같은 라인을 중복 계산하지 않기 위해 사용한다.
 
-하지만 점수는 가로 줄과 세로 줄을 각각 계산해서 더한다.
+예를 들어 가로 매치가 `y=3`, `x=2~4`라면:
+
+```python
+("H", 3, 2, 4)
+```
+
+세로 매치가 `x=5`, `y=1~3`라면:
+
+```python
+("V", 5, 1, 3)
+```
 
 ---
 
-## 8. 교환 후보 평가
+## 11. 교환 좌표 주변만 검사
 
-플레이어가 선택할 수 있는 교환은 다음 두 종류뿐이다.
+```python
+def _matches_around(points, need_cells: bool):
+    total_score = 0
+    seen_lines = set()
+    remove_mark = [[False] * BOARD for _ in range(BOARD)] if need_cells else None
 
-```text
-1. 기준 좌표와 오른쪽 좌표 교환
-2. 기준 좌표와 위쪽 좌표 교환
+    for y, x in points:
+        for horizontal in (True, False):
+            length, cells, key = _line_run(y, x, horizontal)
+
+            if length < 3:
+                continue
+
+            if key in seen_lines:
+                continue
+
+            seen_lines.add(key)
+            total_score += _score(length)
+
+            if need_cells:
+                for cy, cx in cells:
+                    remove_mark[cy][cx] = True
+
+    if not need_cells:
+        return total_score, []
+
+    remove_cells = []
+
+    for y in range(BOARD):
+        for x in range(BOARD):
+            if remove_mark[y][x]:
+                remove_cells.append((y, x))
+
+    return total_score, remove_cells
 ```
 
-보드 범위를 벗어나는 교환은 불가능하다.
+사용 방식:
 
-같은 보석끼리 교환해도 보드가 변하지 않으므로 점수를 얻을 수 없다.
+```python
+# 후보 평가용: 점수만 필요
+score, _ = _matches_around([(y1, x1), (y2, x2)], False)
 
-따라서 후보에서 제외해도 된다.
-
-각 후보는 다음 방식으로 평가한다.
-
-```text
-1. 두 보석을 임시로 교환한다.
-2. 교환 직후 3개 이상 연속된 보석을 찾는다.
-3. 그 즉시 삭제 점수만 계산한다.
-4. 보드를 원상복구한다.
-```
-
-중요:
-
-```text
-후보 선택 기준 점수는 교환 직후 삭제 점수만 의미한다.
-빈칸을 채운 뒤 발생하는 연쇄 삭제 점수는 후보 선택 기준에 포함하지 않는다.
+# 실제 삭제용: 삭제 좌표도 필요
+score, cells = _matches_around([(y1, x1), (y2, x2)], True)
 ```
 
 ---
 
-## 9. 최적 교환 선택 우선순위
+## 12. 최적 교환 선택
 
-교환 가능한 후보가 여러 개라면 다음 우선순위로 선택한다.
+후보 우선순위는 다음과 같다.
 
 ```text
-1. 교환 직후 얻을 수 있는 점수가 가장 높은 후보
-2. 기준 좌표의 Y가 작은 후보
-3. 기준 좌표의 X가 작은 후보
+1. 교환 직후 점수가 가장 큰 것
+2. 기준 좌표 y가 작은 것
+3. 기준 좌표 x가 작은 것
 4. 오른쪽 교환 우선
 ```
 
-구현에서는 y, x를 작은 순서로 순회하고, 같은 좌표에서는 오른쪽을 먼저 검사하면 된다.
-
-```python
-for y in range(8):
-    for x in range(8):
-        for direction in (RIGHT, UP):
-            ...
-```
-
-단, 점수가 더 높은 후보가 나오면 갱신한다.
-
-같은 점수의 후보는 먼저 발견된 것이 우선순위가 더 높으므로 갱신하지 않는다.
-
----
-
-## 10. 실제 교환 후 점수 계산
-
-최적 후보를 찾으면 실제로 교환을 수행한다.
-
-그 후 다음 순서로 처리한다.
+이를 자연스럽게 구현하려면 순회를 다음 순서로 한다.
 
 ```text
-1. 교환 직후 삭제 대상 찾기
-2. 삭제하고 점수 추가
-3. 빈칸 채우기
-4. 다시 삭제 대상 찾기
-5. 삭제할 대상이 있으면 점수 추가
-6. 3~5 반복
-7. 더 이상 삭제 대상이 없으면 턴 종료
+y 작은 순서
+x 작은 순서
+오른쪽 먼저
+위쪽 나중
 ```
 
-이때는 후보 평가와 다르게 연쇄 삭제 점수까지 모두 포함한다.
-
-즉, `takeTurn()`의 반환 점수는 다음이다.
-
-```text
-교환 직후 삭제 점수 + 이후 연쇄 삭제 점수
-```
-
----
-
-## 11. 주요 상태 변수
+그리고 점수가 같을 때는 갱신하지 않는다.
 
 ```python
-BOARD_SIZE = 8
-board = [[0] * BOARD_SIZE for _ in range(BOARD_SIZE)]
-supply = []
-supply_idx = [0] * BOARD_SIZE
+if score > best_score:
+    update
 ```
 
-각 변수의 의미는 다음과 같다.
+`>=`를 쓰면 우선순위가 깨질 수 있다.
 
-| 변수 | 의미 |
-|---|---|
-| `board[y][x]` | 현재 보드의 보석. 0이면 빈칸 |
-| `supply[i][x]` | x열에 i번째로 내려올 예비 보석 |
-| `supply_idx[x]` | x열에서 다음으로 사용할 예비 보석 index |
+```python
+def _find_best_move():
+    best_score = 0
+    best_move = None
+
+    for y in range(BOARD):
+        for x in range(BOARD):
+            # 오른쪽
+            if x + 1 < BOARD:
+                score = _immediate_score_after_swap(y, x, y, x + 1)
+
+                if score > best_score:
+                    best_score = score
+                    best_move = (y, x, y, x + 1)
+
+            # 위쪽
+            if y + 1 < BOARD:
+                score = _immediate_score_after_swap(y, x, y + 1, x)
+
+                if score > best_score:
+                    best_score = score
+                    best_move = (y, x, y + 1, x)
+
+    return best_score, best_move
+```
 
 ---
 
-## 12. 전체 코드
+## 13. 후보 평가
+
+후보 평가에서는 cascade 점수를 고려하면 안 된다.
+
+문제에서 후보 선택 기준은:
+
+```text
+교환 직후 바로 삭제되는 보석들의 점수
+```
+
+라고 되어 있다.
+
+따라서 임시 교환 후 주변 매치 점수만 계산하고 원상복구한다.
+
+```python
+def _immediate_score_after_swap(y1: int, x1: int, y2: int, x2: int) -> int:
+    if board[y1][x1] == board[y2][x2]:
+        return 0
+
+    board[y1][x1], board[y2][x2] = board[y2][x2], board[y1][x1]
+
+    score, _ = _matches_around([(y1, x1), (y2, x2)], False)
+
+    board[y1][x1], board[y2][x2] = board[y2][x2], board[y1][x1]
+
+    return score
+```
+
+---
+
+## 14. 실제 교환과 cascade
+
+최적 교환을 찾으면 실제로 교환한다.
+
+첫 삭제는 교환 때문에 생긴 것이므로 교환 좌표 주변만 보면 된다.
+
+하지만 그 이후에는 보석이 새로 내려오므로 어디서든 매치가 생길 수 있다.
+
+따라서 cascade 단계에서는 전체 보드를 검사해야 한다.
+
+```python
+def _play_swap_and_cascade(y1: int, x1: int, y2: int, x2: int) -> int:
+    total_score = 0
+
+    board[y1][x1], board[y2][x2] = board[y2][x2], board[y1][x1]
+
+    # 교환 직후 삭제: 주변만 검사
+    score, cells = _matches_around([(y1, x1), (y2, x2)], True)
+
+    if cells:
+        total_score += score
+        _remove_cells(cells)
+
+    # cascade: 보충 후에는 어디서든 매치가 생길 수 있음
+    while True:
+        _fill_board()
+
+        score, cells = _find_matches_full()
+
+        if not cells:
+            break
+
+        total_score += score
+        _remove_cells(cells)
+
+    return total_score
+```
+
+---
+
+## 15. 전체 코드
 
 ```python
 from typing import List
 
+BOARD = 8
+EMPTY = 0
 
-BOARD_SIZE = 8
-
-board = [[0] * BOARD_SIZE for _ in range(BOARD_SIZE)]
-supply = []
-supply_idx = [0] * BOARD_SIZE
-N_SUPPLY = 0
-
-RIGHT = 0
-UP = 1
-
-DY = [0, 1]
-DX = [1, 0]
+board = [[0] * BOARD for _ in range(BOARD)]
+jewels = []
+jewel_idx = [0] * BOARD
 
 
-class Ret:
-    def __init__(self, score: int, y: int, x: int, ny: int, nx: int):
-        self.score = score
-        self.y = y
-        self.x = x
-        self.ny = ny
-        self.nx = nx
+def init(N, mJewels) -> None:
+    global board, jewels, jewel_idx
+
+    board = [[0] * BOARD for _ in range(BOARD)]
+    jewels = [row[:] for row in mJewels]
+    jewel_idx = [0] * BOARD
 
 
-def init(N: int, mJewels: List[List[int]]) -> None:
-    global board, supply, supply_idx, N_SUPPLY
-
-    N_SUPPLY = N
-    supply = [row[:] for row in mJewels]
-    supply_idx = [0] * BOARD_SIZE
-
-    board = [[0] * BOARD_SIZE for _ in range(BOARD_SIZE)]
-
-
-def _score_by_len(length: int) -> int:
+def _score(length: int) -> int:
     if length == 3:
         return 1
     if length == 4:
@@ -358,120 +582,167 @@ def _score_by_len(length: int) -> int:
     return 9
 
 
-def _fill_empty() -> None:
-    """
-    빈칸을 위에서 내려오는 예비 보석으로 채운다.
+def _fill_board() -> None:
+    for x in range(BOARD):
+        write = 0
 
-    좌표는 y=0이 아래쪽, y=7이 위쪽이다.
-    각 column은 독립적으로 예비 보석을 소비한다.
-    """
-    global board, supply_idx
+        for y in range(BOARD):
+            if board[y][x] != EMPTY:
+                board[write][x] = board[y][x]
+                write += 1
 
-    for x in range(BOARD_SIZE):
-        remain = []
-
-        # 아래에서 위로 보면서 기존 보석만 남긴다.
-        for y in range(BOARD_SIZE):
-            if board[y][x] != 0:
-                remain.append(board[y][x])
-
-        # 아래쪽부터 기존 보석을 채운다.
-        y = 0
-        for jewel in remain:
-            board[y][x] = jewel
-            y += 1
-
-        # 남은 빈칸은 예비 보석으로 채운다.
-        while y < BOARD_SIZE:
-            idx = supply_idx[x]
-            board[y][x] = supply[idx][x]
-            supply_idx[x] += 1
-            y += 1
+        while write < BOARD:
+            board[write][x] = jewels[jewel_idx[x]][x]
+            jewel_idx[x] += 1
+            write += 1
 
 
-def _find_matches():
-    """
-    현재 board에서 가로/세로 3개 이상 연속된 보석을 찾는다.
-
-    반환:
-    - total_score: 이번 삭제로 얻는 점수
-    - remove_cells: 삭제될 좌표 set
-
-    겹치는 cell은 한 번만 삭제하지만,
-    점수는 가로 줄, 세로 줄 각각 합산한다.
-    """
+def _find_matches_full():
     total_score = 0
-    remove_cells = set()
+    mark = [[False] * BOARD for _ in range(BOARD)]
 
     # 가로 검사
-    for y in range(BOARD_SIZE):
+    for y in range(BOARD):
         x = 0
 
-        while x < BOARD_SIZE:
-            jewel = board[y][x]
+        while x < BOARD:
+            v = board[y][x]
 
-            if jewel == 0:
+            if v == EMPTY:
                 x += 1
                 continue
 
             start = x
 
-            while x < BOARD_SIZE and board[y][x] == jewel:
+            while x < BOARD and board[y][x] == v:
                 x += 1
 
             length = x - start
 
             if length >= 3:
-                total_score += _score_by_len(length)
+                total_score += _score(length)
 
                 for cx in range(start, x):
-                    remove_cells.add((y, cx))
+                    mark[y][cx] = True
 
     # 세로 검사
-    for x in range(BOARD_SIZE):
+    for x in range(BOARD):
         y = 0
 
-        while y < BOARD_SIZE:
-            jewel = board[y][x]
+        while y < BOARD:
+            v = board[y][x]
 
-            if jewel == 0:
+            if v == EMPTY:
                 y += 1
                 continue
 
             start = y
 
-            while y < BOARD_SIZE and board[y][x] == jewel:
+            while y < BOARD and board[y][x] == v:
                 y += 1
 
             length = y - start
 
             if length >= 3:
-                total_score += _score_by_len(length)
+                total_score += _score(length)
 
                 for cy in range(start, y):
-                    remove_cells.add((cy, x))
+                    mark[cy][x] = True
 
-    return total_score, remove_cells
+    cells = []
+
+    for y in range(BOARD):
+        for x in range(BOARD):
+            if mark[y][x]:
+                cells.append((y, x))
+
+    return total_score, cells
 
 
 def _remove_cells(cells) -> None:
     for y, x in cells:
-        board[y][x] = 0
+        board[y][x] = EMPTY
 
 
-def _resolve_board_without_score() -> None:
-    """
-    준비 상태를 만들 때 사용한다.
+def _line_run(y: int, x: int, horizontal: bool):
+    v = board[y][x]
 
-    빈칸을 채우고,
-    3개 이상 연속된 보석이 있으면 삭제한다.
+    if v == EMPTY:
+        return 0, [], None
 
-    준비 과정에서 발생하는 삭제는 플레이어 점수로 계산하지 않는다.
-    """
+    cells = [(y, x)]
+
+    if horizontal:
+        cx = x - 1
+        while cx >= 0 and board[y][cx] == v:
+            cells.append((y, cx))
+            cx -= 1
+
+        cx = x + 1
+        while cx < BOARD and board[y][cx] == v:
+            cells.append((y, cx))
+            cx += 1
+
+        xs = [c[1] for c in cells]
+        key = ("H", y, min(xs), max(xs))
+
+    else:
+        cy = y - 1
+        while cy >= 0 and board[cy][x] == v:
+            cells.append((cy, x))
+            cy -= 1
+
+        cy = y + 1
+        while cy < BOARD and board[cy][x] == v:
+            cells.append((cy, x))
+            cy += 1
+
+        ys = [c[0] for c in cells]
+        key = ("V", x, min(ys), max(ys))
+
+    return len(cells), cells, key
+
+
+def _matches_around(points, need_cells: bool):
+    total_score = 0
+    seen_lines = set()
+    remove_mark = [[False] * BOARD for _ in range(BOARD)] if need_cells else None
+
+    for y, x in points:
+        for horizontal in (True, False):
+            length, cells, key = _line_run(y, x, horizontal)
+
+            if length < 3:
+                continue
+
+            if key in seen_lines:
+                continue
+
+            seen_lines.add(key)
+            total_score += _score(length)
+
+            if need_cells:
+                for cy, cx in cells:
+                    remove_mark[cy][cx] = True
+
+    if not need_cells:
+        return total_score, []
+
+    remove_cells = []
+
+    for y in range(BOARD):
+        for x in range(BOARD):
+            if remove_mark[y][x]:
+                remove_cells.append((y, x))
+
+    return total_score, remove_cells
+
+
+def _resolve_without_score() -> None:
     while True:
-        _fill_empty()
+        _fill_board()
 
-        score, cells = _find_matches()
+        _, cells = _find_matches_full()
 
         if not cells:
             break
@@ -479,118 +750,73 @@ def _resolve_board_without_score() -> None:
         _remove_cells(cells)
 
 
-def _is_valid_coord(y: int, x: int) -> bool:
-    return 0 <= y < BOARD_SIZE and 0 <= x < BOARD_SIZE
-
-
-def _immediate_score_after_swap(y: int, x: int, direction: int) -> int:
-    """
-    특정 좌표에서 오른쪽 또는 위쪽 보석과 교환했을 때,
-    교환 직후 바로 삭제되는 보석의 점수만 계산한다.
-
-    cascade 점수는 여기서 고려하지 않는다.
-    """
-    ny = y + DY[direction]
-    nx = x + DX[direction]
-
-    if not _is_valid_coord(ny, nx):
+def _immediate_score_after_swap(y1: int, x1: int, y2: int, x2: int) -> int:
+    if board[y1][x1] == board[y2][x2]:
         return 0
 
-    if board[y][x] == board[ny][nx]:
-        return 0
+    board[y1][x1], board[y2][x2] = board[y2][x2], board[y1][x1]
 
-    board[y][x], board[ny][nx] = board[ny][nx], board[y][x]
+    score, _ = _matches_around([(y1, x1), (y2, x2)], False)
 
-    score, cells = _find_matches()
-
-    board[y][x], board[ny][nx] = board[ny][nx], board[y][x]
-
-    if not cells:
-        return 0
+    board[y1][x1], board[y2][x2] = board[y2][x2], board[y1][x1]
 
     return score
 
 
 def _find_best_move():
-    """
-    가능한 모든 교환 후보 중 최적 후보를 찾는다.
-
-    우선순위:
-    1. 교환 직후 얻는 점수가 큰 것
-    2. 기준 좌표 y가 작은 것
-    3. 기준 좌표 x가 작은 것
-    4. 오른쪽 교환 우선
-    """
     best_score = 0
-    best = None
+    best_move = None
 
-    for y in range(BOARD_SIZE):
-        for x in range(BOARD_SIZE):
-            # 같은 y, x에서는 오른쪽을 먼저 검사한다.
-            for direction in (RIGHT, UP):
-                score = _immediate_score_after_swap(y, x, direction)
-
-                if score == 0:
-                    continue
+    for y in range(BOARD):
+        for x in range(BOARD):
+            # 오른쪽 교환
+            if x + 1 < BOARD:
+                score = _immediate_score_after_swap(y, x, y, x + 1)
 
                 if score > best_score:
-                    ny = y + DY[direction]
-                    nx = x + DX[direction]
-
                     best_score = score
-                    best = (y, x, ny, nx, direction)
+                    best_move = (y, x, y, x + 1)
 
-    return best_score, best
+            # 위쪽 교환
+            if y + 1 < BOARD:
+                score = _immediate_score_after_swap(y, x, y + 1, x)
+
+                if score > best_score:
+                    best_score = score
+                    best_move = (y, x, y + 1, x)
+
+    return best_score, best_move
 
 
 def _prepare_board() -> None:
-    """
-    매 턴 시작 전 준비 상태를 만든다.
-
-    준비 상태 조건:
-    1. 빈칸이 없어야 한다.
-    2. 3개 이상 연속된 보석이 없어야 한다.
-    3. 점수를 얻을 수 있는 교환이 최소 1개 있어야 한다.
-
-    가능한 교환이 없으면 전체 보석을 삭제하고 다시 준비한다.
-    """
     global board
 
     while True:
-        _resolve_board_without_score()
+        _resolve_without_score()
 
-        best_score, best = _find_best_move()
+        _, move = _find_best_move()
 
-        if best is not None:
+        if move is not None:
             return
 
-        # 가능한 교환이 없으면 전체 보석 삭제
-        board = [[0] * BOARD_SIZE for _ in range(BOARD_SIZE)]
+        board = [[EMPTY] * BOARD for _ in range(BOARD)]
 
 
-def _play_after_swap(y: int, x: int, ny: int, nx: int) -> int:
-    """
-    실제 교환을 수행하고,
-    삭제 + 중력 + 연쇄 삭제를 더 이상 삭제될 게 없을 때까지 반복한다.
-
-    반환값은 이번 턴 총 점수이다.
-    """
+def _play_swap_and_cascade(y1: int, x1: int, y2: int, x2: int) -> int:
     total_score = 0
 
-    board[y][x], board[ny][nx] = board[ny][nx], board[y][x]
+    board[y1][x1], board[y2][x2] = board[y2][x2], board[y1][x1]
 
-    # 교환 직후 삭제
-    score, cells = _find_matches()
+    score, cells = _matches_around([(y1, x1), (y2, x2)], True)
 
     if cells:
         total_score += score
         _remove_cells(cells)
 
-    # 이후 cascade 처리
     while True:
-        _fill_empty()
+        _fill_board()
 
-        score, cells = _find_matches()
+        score, cells = _find_matches_full()
 
         if not cells:
             break
@@ -601,139 +827,89 @@ def _play_after_swap(y: int, x: int, ny: int, nx: int) -> int:
     return total_score
 
 
-def takeTurn() -> Ret:
-    """
-    매 턴 과정:
-    1. 준비 상태 만들기
-    2. 최적 교환 선택
-    3. 교환 후 삭제 및 cascade 처리
-    """
+def takeTurn() -> List[int]:
     _prepare_board()
 
-    _, best = _find_best_move()
+    _, move = _find_best_move()
 
-    y, x, ny, nx, direction = best
+    y1, x1, y2, x2 = move
 
-    total_score = _play_after_swap(y, x, ny, nx)
+    total_score = _play_swap_and_cascade(y1, x1, y2, x2)
 
-    return Ret(total_score, y, x, ny, nx)
+    return [total_score, y1, x1, y2, x2]
 ```
 
 ---
 
-## 13. 실수하기 쉬운 포인트
+## 16. 실수하기 쉬운 포인트
 
-### 13.1 좌표계
+### 16.1 후보 선택은 immediate score만 본다
 
-문제의 좌표는 `(Y, X)`이고, 좌측 하단이 `(0, 0)`이다.
-
-따라서 위쪽은 `Y + 1`, 오른쪽은 `X + 1`이다.
-
-```python
-RIGHT = 0
-UP = 1
-
-DY = [0, 1]
-DX = [1, 0]
-```
+연쇄 삭제 점수는 후보 선택 기준에 포함하지 않는다.
 
 ---
 
-### 13.2 보충 방향
+### 16.2 실제 점수는 cascade까지 포함한다
 
-빈칸은 위에서 내려오므로 기존 보석은 아래로 떨어진다.
-
-따라서 각 열을 `y=0`부터 보면서 기존 보석을 아래쪽부터 다시 배치한다.
+`takeTurn()` 반환 점수는 교환 직후 삭제 점수와 이후 연쇄 삭제 점수를 모두 포함한다.
 
 ---
 
-### 13.3 후보 선택 점수와 실제 획득 점수가 다르다
+### 16.3 준비 상태에서 발생한 삭제는 점수에 포함하지 않는다
 
-후보 선택 시에는 교환 직후 바로 삭제되는 점수만 본다.
-
-하지만 실제 턴 점수는 연쇄 삭제 점수까지 포함한다.
-
-```text
-후보 선택 기준 = immediate score
-반환 점수 = immediate score + cascade score
-```
+준비 과정은 게임 시작 전 보드를 안정화하는 과정일 뿐이다.
 
 ---
 
-### 13.4 준비 상태에서 발생한 삭제는 점수에 포함하지 않는다
+### 16.4 같은 점수 후보는 갱신하지 않는다
 
-준비 상태를 만들기 위해 보석이 삭제될 수 있다.
-
-이 삭제는 플레이어의 교환으로 발생한 것이 아니므로 점수에 포함하지 않는다.
-
----
-
-### 13.5 가능한 교환이 없으면 전체 삭제 후 재준비
-
-준비 상태 조건에는 가능한 교환이 최소 1개 존재해야 한다는 조건이 있다.
-
-가능한 교환이 없으면 보드 전체를 삭제하고, 예비 보석으로 다시 채운다.
-
----
-
-### 13.6 같은 좌표 우선순위에서는 오른쪽 교환 우선
-
-같은 점수, 같은 기준 좌표라면 오른쪽 교환이 위쪽 교환보다 우선이다.
-
-따라서 후보 탐색 시 방향 순서를 `(RIGHT, UP)`으로 둔다.
-
----
-
-### 13.7 같은 점수 후보가 나왔을 때 갱신하지 않는다
-
-y, x, direction을 우선순위 순서대로 순회하고 있으므로, 같은 점수 후보가 나오면 기존 후보를 유지해야 한다.
-
-따라서 갱신 조건은 다음처럼 둔다.
+우선순위 순서대로 순회하므로:
 
 ```python
 if score > best_score:
-    update
 ```
 
-`>=`를 쓰면 우선순위가 깨질 수 있다.
+만 사용해야 한다.
 
 ---
 
-## 14. 시간복잡도
+### 16.5 첫 교환 후 삭제는 주변 검사 가능
 
-보드 크기는 항상 `8 x 8`로 고정이다.
-
-가능한 교환 후보는 최대 다음 정도이다.
-
-```text
-오른쪽 교환: 8 * 7 = 56개
-위쪽 교환: 7 * 8 = 56개
-총 112개
-```
-
-각 후보마다 전체 보드에서 매치를 검사해도 64칸뿐이다.
-
-따라서 한 턴의 계산량은 매우 작다.
-
-```text
-O(1)
-```
-
-실제로는 고정 크기 보드 시뮬레이션이다.
+준비 상태에는 기존 매치가 없으므로 첫 삭제는 교환된 두 좌표 주변만 검사하면 된다.
 
 ---
 
-## 15. 핵심 결론
+### 16.6 cascade는 전체 검사 필요
 
-이 문제는 최적화보다 규칙 분리가 중요하다.
+보충 후에는 새 보석이 여러 위치에 들어오므로 어디서든 매치가 생길 수 있다.
 
-핵심은 다음 네 가지이다.
+따라서 cascade는 full scan이 필요하다.
+
+---
+
+## 17. 핵심 결론
+
+이 문제는 다음 네 가지를 분리하면 된다.
 
 ```text
-1. 준비 상태 과정은 점수에 포함하지 않는다.
-2. 후보 선택은 교환 직후 점수만 기준으로 한다.
-3. 실제 턴 점수는 연쇄 삭제까지 포함한다.
-4. 가능한 교환이 없으면 전체 보드를 삭제하고 다시 준비한다.
+1. fill_board
+   중력 + 예비 보석 보충
+
+2. find_matches_full
+   전체 보드 매치 검사
+
+3. matches_around
+   후보 평가 및 첫 삭제 최적화
+
+4. play_swap_and_cascade
+   실제 교환 후 연쇄 삭제 처리
 ```
 
-이 네 가지를 지키면 시뮬레이션 흐름을 안정적으로 구현할 수 있다.
+최적화의 핵심은 다음이다.
+
+```text
+준비 상태에서는 기존 매치가 없으므로,
+교환 후 새로 생기는 매치는 반드시 교환된 두 좌표 중 하나를 포함한다.
+```
+
+따라서 후보 평가는 전체 보드가 아니라 교환된 두 좌표 주변만 검사하면 된다.
